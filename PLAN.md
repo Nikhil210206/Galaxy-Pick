@@ -12,10 +12,11 @@
 - **Deterministic-first:** the app runs fully **offline, no API key, no network**. Gemini is a bonus behind a flag + `try/except` fallback.
 - **Recommendation logic = Weighted Sum Model (WSM).** No ML / RAG / embeddings / vector DB / backend / DB / auth.
 - **Currency = INR.** **Dataset = 2024–2026**, one row per model, every 2026 row `spec_source=mock`.
-- **The agent never commits.** After each phase, print the commit message (Section 10) for the human to run.
+- **The agent never commits.** The whole build lands as **one commit** (Section 10), which the human runs.
 
-**Build order (each phase depends on the previous):** 0 → 1 → 2 → 3 → 4 → 5.
+**Build order:** 0 → 1 → 2 → 4 → 5, then **3 last**.
 Phase 2 (the notebook) is the **graded core** — once it's done the project is already pass-safe.
+**Phase 3 (the UI) is deferred to the end**: it's the only phase blocked on an external artifact (the design is being done in Stitch), and nothing else depends on it. `app/streamlit_app.py` is a working, deliberately unstyled placeholder until that design lands.
 
 ---
 
@@ -131,7 +132,7 @@ font = "sans serif"
 **`README.md`:** short — what it is, the run commands from `CLAUDE.md`, and a screenshots placeholder.
 
 **Acceptance:** `conda env create -f environment.yml` succeeds; `conda activate galaxy-pick`; `streamlit hello` opens.
-**Commit:** `chore: scaffold Galaxy-Pick project structure and Anaconda env`
+*(No per-phase commit — the whole build lands as the single commit in Section 10.)*
 
 ---
 
@@ -182,7 +183,7 @@ if __name__ == "__main__":
 ```
 
 **Acceptance:** `python scripts/build_dataset.py` prints ~36 models (27 real / 9 mock) and all asserts pass.
-**Commit:** `feat(data): build curated 2024-2026 Galaxy dataset with scores, provenance flags, and placeholder image refs`
+*(No per-phase commit — see Section 10.)*
 
 ---
 
@@ -201,7 +202,7 @@ if __name__ == "__main__":
 8. **Wrap-up (markdown):** 3 findings restated; one limitation (scores are heuristic; 2026 is projected).
 
 **Acceptance:** *Restart & Run All* → no errors; worked example prints `7.5`; each persona shows a sensible in-budget top-3.
-**Commit:** `feat(core): add EDA, spec-to-score feature engineering, personas, and WSM in analysis notebook`
+*(No per-phase commit — see Section 10.)*
 
 ---
 
@@ -230,7 +231,7 @@ def placeholder_svg(model_name, series):
 ```
 
 **Acceptance:** `streamlit run app/streamlit_app.py`; picking each persona shows the **same top-3 as the notebook**; free-text "photography under ₹50k" → camera-weighted, all ≤ ₹50k.
-**Commit:** `feat(app): add Samsung-styled Streamlit recommender UI over shared engine`
+*(No per-phase commit — see Section 10.)*
 
 ---
 
@@ -247,7 +248,7 @@ def placeholder_svg(model_name, series):
 **Responsible-AI panel (in the app):** show `real` vs `mock` counts, "Scores are transparent heuristics, not benchmarks," and "2026 models are projections." This is a graded Ch.4 asset — make it visible.
 
 **Acceptance (the fallback drill — critical):** with **no** `GEMINI_API_KEY` and Wi-Fi **off**, free-text parsing + explanations still produce correct results. Bad input (empty / gibberish) → neutral weights, no crash.
-**Commit:** `feat(ai): natural-language persona parsing with deterministic fallback + Responsible-AI panel`
+*(No per-phase commit — see Section 10.)*
 
 ---
 
@@ -257,17 +258,49 @@ def placeholder_svg(model_name, series):
 - **Stretch (only if green):** live **weight sliders** (Member 3); **close-call flag** surfaced in the UI (Member 2).
 - **Screenshots:** capture the app (persona result + free-text result + provenance panel) into `presentation/`.
 - **Slide deck (brief Step 10):** personas; the WSM formula + the `7.5` worked example; a UI screenshot; the 3 EDA findings; one honest "where the AI needed guarding" note (Ch.4). Add the Appendix C Gemini prompt as your "how we made the dataset" slide.
-- **Commit:** `test: add scoring/WSM unit tests; polish theme and presentation assets`
+- **Commit:** *(none per-phase — see Section 10.)*
 
 ---
 
-## 10. Commit messages (the human runs these; the agent only prints them)
-- P0 `chore: scaffold Galaxy-Pick project structure and Anaconda env`
-- P1 `feat(data): build curated 2024-2026 Galaxy dataset with scores, provenance flags, and placeholder image refs`
-- P2 `feat(core): add EDA, spec-to-score feature engineering, personas, and WSM in analysis notebook`
-- P3 `feat(app): add Samsung-styled Streamlit recommender UI over shared engine`
-- P4 `feat(ai): natural-language persona parsing with deterministic fallback + Responsible-AI panel`
-- P5 `test: add scoring/WSM unit tests; polish theme and presentation assets`
+## 10. The commit (the human runs this; the agent only prints it)
+
+**One commit for the whole build.** The agent never commits and must not appear in author history.
+
+```
+feat: add Galaxy-Pick — persona-driven Galaxy phone recommender
+
+Ranks 36 Galaxy models (2024-2026) for a shopper persona or a plain-English
+request, returning a top-3 with a one-line reason for each. Runs fully offline:
+no key, no network, no server, no database.
+
+- data:     curated 2024-2026 seed (27 real / 9 projected, every 2026 row
+            flagged spec_source=mock) -> phones.csv, built and validated by
+            scripts/build_dataset.py
+- engine:   src/recommender/ is the single source of truth, imported by both
+            the notebook and the app: spec->score heuristics, four personas,
+            and the Weighted Sum Model
+- notebook: EDA (3 findings), feature engineering, personas, and the WSM
+            worked example (7.5); runs top-to-bottom
+- ai:       free-text parsing via Gemini when a key is present, deterministic
+            keyword/regex parser otherwise; every call falls back, so the demo
+            never depends on the network
+- tests:    33 passing, including the offline fallback drill
+
+The data forced two fixes to the scoring model:
+
+camera_score ranks on series optics tier rather than megapixels. rear_camera_mp
+takes only two values across the catalog (50 and 200) and every 200MP phone
+costs >= Rs 1,39,999, so megapixels could not tell any two cameras apart below
+that price -- and the WSM rated the cheapest phone the best for photography.
+
+wsm.recommend() normalizes the in-budget pool before weighting. Influence in a
+weighted sum is weight x spread, and value_score spanned the full 0-10 while
+camera spanned ~3, so value outvoted camera at 2.5x less weight and every
+persona collapsed onto the cheapest phone. match_scores() is unchanged, so the
+7.5 worked example still holds.
+```
+
+*(The UI is not in this commit — Phase 3 is deferred until the Stitch design lands; `app/streamlit_app.py` is a working placeholder.)*
 
 ---
 
@@ -283,9 +316,18 @@ def value_score_column(df) -> "pd.Series"   # needs the 3 other scores + price_i
 PERSONAS: dict          # name -> {"story", "weights", "budget_max"}
 
 # wsm.py
+def normalize_scores(df) -> "pd.DataFrame"   # all 4 criteria onto a common 0–10 scale
 def match_scores(df, weights: dict) -> "pd.Series"
 def recommend(df, weights: dict, budget_max: int | None = None,
               form_factor: str | None = None, top_n: int = 3) -> "pd.DataFrame"
+
+# data.py
+def load_phones(path=None) -> "pd.DataFrame"   # reads phones.csv AND validates it
+def validate(df) -> "pd.DataFrame"             # raises if the row contract is broken
+def provenance(df) -> dict                     # {"total","real","mock","mock_years"}
+
+# cards.py
+def placeholder_svg(model_name: str, series: str) -> str
 
 # nlp_parse.py
 def parse(text: str) -> dict   # {"weights","budget_max","form_factor","must_haves"}
@@ -362,16 +404,20 @@ CHIPSET_TIER = {
     "Dimensity 6300": 4.2, "Dimensity 6100+": 4.0,
 }
 CHIPSET_DEFAULT = 4.0
-OPTICS_BONUS = {"S-Ultra": 0.7, "Z-Fold": 0.5, "S": 0.3, "S-FE": 0.2,
-                "Z-Flip": 0.2, "A": 0.0, "M": 0.0, "F": 0.0}
+
+# Optics tier is the PRIMARY camera signal, not megapixels — see the note below.
+SERIES_OPTICS = {"S-Ultra": 9.0, "S": 8.0, "Z-Fold": 7.6, "S-FE": 7.2,
+                 "Z-Flip": 7.0, "A": 5.8, "M": 5.2, "F": 5.0}
+SERIES_OPTICS_DEFAULT = 5.0
 
 def _clamp(x, lo=0.0, hi=10.0):
     return round(float(max(lo, min(hi, x))), 1)
 
 def camera_score(rear_camera_mp, series):
     mp = rear_camera_mp
-    base = 5.5 if mp <= 12 else 7.0 if mp <= 50 else 7.5 if mp <= 64 else 8.5 if mp <= 108 else 9.3
-    return _clamp(base + OPTICS_BONUS.get(series, 0.0))
+    base = SERIES_OPTICS.get(series, SERIES_OPTICS_DEFAULT)
+    mp_bonus = 0.0 if mp <= 12 else 0.2 if mp <= 50 else 0.4 if mp <= 64 else 0.7 if mp <= 108 else 1.0
+    return _clamp(base + mp_bonus)
 
 def performance_score(chipset, ram_gb, refresh_rate_hz):
     base = CHIPSET_TIER.get(chipset, CHIPSET_DEFAULT)
@@ -392,8 +438,11 @@ def value_score_column(df):
     return ((raw - lo) / (hi - lo) * 10).round(1)
 ```
 
+> **Why optics and not megapixels (this changed the model — keep it for the Ch.4 slide).**
+> `rear_camera_mp` takes only **two distinct values across all 36 phones** (50 and 200), 31 of them 50MP, and every 200MP phone costs **≥ ₹1,39,999**. Scoring on megapixels therefore said a ₹12,499 F15 and a ₹87,559 S24 have the same camera, and couldn't separate *any* two phones below ₹1.4 lakh. A criterion that never varies can't influence a ranking, so `value_score` decided every persona by default and the WSM rated **the cheapest phone in the catalog as the best photography phone**. What actually differs between these cameras is sensor size, OIS, zoom and ISP — and those track the series tier, so that's what leads now, with MP demoted to a small bonus.
+
 ### B.2 Plain-English logic (paste into the notebook + slides)
-- **camera_score:** megapixel band (12→5.5, 50→7.0, 64→7.5, 108→8.5, 200→9.3) + a small optics bonus for premium series (Ultra/Fold get the best sensors & zoom). *Caveat: MP ≠ image quality — this is a transparent heuristic.*
+- **camera_score:** series optics tier (Ultra 9.0 → S 8.0 → Fold 7.6 → FE 7.2 → Flip 7.0 → A 5.8 → M 5.2 → F 5.0) + a small megapixel bonus (50→+0.2, 64→+0.4, 108→+0.7, 200→+1.0). *Caveat: MP ≠ image quality, which is exactly why optics leads — but the tier is still our judgement, not a lab test.*
 - **performance_score:** chipset tier (flagship Snapdragon/Exynos high, entry Dimensity/Exynos low) + RAM adjustment (6/8/12 GB → −0.3/0/+0.6) + 0.3 for 120 Hz.
 - **battery_score:** capacity scaled 3700→6000 mAh onto 5.0→9.5, + 0.6 for ≥45 W charging, − 0.4 for big ≥7″ foldable screens.
 - **value_score:** *emergent* — (camera+performance+battery) per ₹10,000, min-max scaled 0–10. Budget M/F models score high; flagships score low.
@@ -426,9 +475,24 @@ PERSONAS = {
 Worked example (Priya, weights 0.5/0.1/0.2/0.2; a phone scoring camera=9, performance=6, battery=7, value=5):
 `= 9×0.5 + 6×0.1 + 7×0.2 + 5×0.2 = 4.5 + 0.6 + 1.4 + 1.0 = 7.5`  → used in `test_wsm.py`.
 
+> **The weighted sum needs normalized criteria (this also changed the model — Ch.4 slide material).**
+> A criterion's real influence in a weighted sum is **weight × spread**, not weight alone. The four raw scores don't share a spread: `value_score` is min–max scaled and uses the full 0–10, while `camera_score` spans ~3. So value swung the ranking by **2.00** at weight 0.20 while camera swung it by only **1.50** at weight 0.50 — **value outvoted camera at 2.5× less weight**, and Priya (photography) and Meera (budget) got *identical* top-3s. The fix is standard multi-criteria decision analysis: **normalize the decision matrix** — the alternatives actually being compared, i.e. the in-budget pool — before applying weights. `match_scores()` stays a pure dot product, so the `7.5` worked example is unaffected. Raw scores are still what we *display*: "camera 7.4/10" is meaningful to a shopper, a pool-relative `0.0` is not.
+
 ```python
 # src/recommender/wsm.py
 SCORE_COLS = ["camera_score", "performance_score", "battery_score", "value_score"]
+FACTORS = ["camera", "performance", "battery", "value"]
+NEUTRAL_NORM = 5.0      # what a criterion is worth when every option ties on it
+
+def normalize_scores(df):
+    """Put all four criteria on a common 0–10 scale across the rows given."""
+    out = df.copy()
+    for c in SCORE_COLS:
+        lo, hi = df[c].min(), df[c].max()
+        # every option identical on this criterion → it can't discriminate, so it
+        # must not tip the ranking either way
+        out[c] = (df[c] - lo) / (hi - lo) * 10 if hi > lo else NEUTRAL_NORM
+    return out
 
 def match_scores(df, weights):
     w = [weights["camera"], weights["performance"], weights["battery"], weights["value"]]
@@ -444,9 +508,20 @@ def recommend(df, weights, budget_max=None, form_factor=None, top_n=3):
         pool = pool[pool["screen_size_inch"] <= 6.4]
     if pool.empty:                       # graceful: never return nothing
         pool = df.copy()
-    pool = pool.assign(match_score=match_scores(pool, weights))
+    # rank on the normalized pool, hand back the raw scores for display
+    pool = pool.assign(match_score=match_scores(normalize_scores(pool), weights))
     return pool.sort_values("match_score", ascending=False).head(top_n)
 ```
+
+**Expected top-3 (regenerate with the notebook if the data changes):**
+
+| Persona | Top-3 |
+|---|---|
+| Priya — photography (≤₹80k) | S26 FE · S24 FE · M15 5G |
+| Arjun — gamer (≤₹85k) | S26 FE · M35 5G · S24 FE |
+| Meera — student (≤₹20k) | M15 5G · F15 5G · M35 5G |
+| Rahul — business (≤₹1.4L) | S26 Ultra · S26+ · S25+ |
+| *free text:* "photography under ₹50k" | A57 5G · A56 5G · A36 5G |
 
 ---
 
@@ -522,12 +597,24 @@ def test_recommend_respects_budget():
     assert (out["price_inr"] <= 20000).all() and len(out) <= 3
 ```
 
+**Plus regression guards for the two model fixes** (in `tests/`, see the files themselves):
+`test_camera_ranks_by_optics_not_megapixels`, `test_camera_discriminates_across_the_catalog`,
+`test_normalize_puts_criteria_on_a_common_scale`, `test_normalize_is_neutral_when_a_criterion_cannot_discriminate`,
+`test_personas_produce_distinct_recommendations`, `test_camera_persona_picks_the_best_camera_in_budget`,
+`test_budget_persona_still_picks_on_value` — these fail if the WSM ever collapses onto "cheapest phone" again.
+`tests/test_nlp_parse.py` runs the **fallback drill** as tests (bad input → neutral weights, no crash;
+"photography under ₹50k" → camera-weighted and in budget; mock rows disclosed in the reason text).
+A root `conftest.py` puts the repo root on `sys.path` so `from src.recommender import ...` resolves and
+the relative `data/processed/phones.csv` paths work from anywhere. **33 tests.**
+
 ---
 
 # Appendix E — Verification checklist (run before the presentation)
-- [ ] `python scripts/build_dataset.py` → ~36 rows (27 real / 9 mock), all asserts pass.
+- [ ] `python scripts/build_dataset.py` → 36 rows (27 real / 9 mock), all asserts pass.
 - [ ] Notebook *Restart & Run All* → no errors; worked example prints `7.5`; 3 EDA findings written.
-- [ ] `streamlit run app/streamlit_app.py` → each persona's top-3 matches the notebook; "photography under ₹50k" → camera-weighted, all ≤ ₹50k.
+- [ ] `streamlit run app/streamlit_app.py` → each persona's top-3 matches the notebook (see the B.4 table); "photography under ₹50k" → A57/A56/A36, all ≤ ₹50k.
 - [ ] **Fallback drill:** unset `GEMINI_API_KEY` + Wi-Fi off → free-text + explanations still work.
-- [ ] `pytest -q` → green.
+- [ ] `pytest -q` → green (33).
 - [ ] Screenshots captured; deck has personas, WSM + `7.5`, UI shot, 3 findings, one Ch.4 note.
+
+**Environment gotcha (hit on the dev machine):** the plan assumes Anaconda. If `conda` isn't on PATH, install Miniconda — a bare system Python may have a numpy blocked by Windows Application Control, which breaks pandas on import.

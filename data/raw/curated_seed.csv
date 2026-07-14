@@ -1,0 +1,37 @@
+model_name,series,launch_year,price_inr,ram_gb,storage_gb,chipset,rear_camera_mp,battery_mah,screen_size_inch,refresh_rate_hz,charging_w,segment,spec_source
+Galaxy S24,S,2024,87559,8,256,Exynos 2400,50,4000,6.2,120,25,business,real
+Galaxy S24+,S,2024,107559,8,256,Exynos 2400,50,4900,6.7,120,45,business,real
+Galaxy S24 Ultra,S-Ultra,2024,147559,12,256,Snapdragon 8 Gen3,200,5000,6.8,120,45,photography,real
+Galaxy S24 FE,S-FE,2024,67559,8,256,Exynos 2400e,50,4700,6.7,120,25,gaming,real
+Galaxy Z Flip6,Z-Flip,2024,117559,8,256,Snapdragon 8 Gen3,50,4000,6.7,120,25,business,real
+Galaxy Z Fold6,Z-Fold,2024,172559,8,256,Snapdragon 8 Gen3,50,4400,7.6,120,25,business,real
+Galaxy S25,S,2025,88559,8,256,Snapdragon 8 Elite,50,4000,6.2,120,25,business,real
+Galaxy S25+,S,2025,107559,8,256,Snapdragon 8 Elite,50,4900,6.7,120,45,business,real
+Galaxy S25 Ultra,S-Ultra,2025,147559,12,256,Snapdragon 8 Elite,200,5000,6.9,120,45,photography,real
+Galaxy Z Flip7,Z-Flip,2025,122559,8,256,Snapdragon 8 Elite,50,4300,6.8,120,25,business,real
+Galaxy Z Fold7,Z-Fold,2025,182559,8,256,Snapdragon 8 Elite,200,4600,8.0,120,25,business,real
+Galaxy A15 5G,A,2024,14999,6,128,Dimensity 6100+,50,5000,6.5,90,25,budget,real
+Galaxy A25 5G,A,2024,19999,8,128,Exynos 1280,50,5000,6.5,120,25,budget,real
+Galaxy A35 5G,A,2024,26999,8,128,Exynos 1380,50,5000,6.6,120,25,business,real
+Galaxy A55 5G,A,2024,35999,8,128,Exynos 1480,50,5000,6.6,120,25,business,real
+Galaxy M15 5G,M,2024,12999,6,128,Dimensity 6100+,50,6000,6.5,90,25,budget,real
+Galaxy M35 5G,M,2024,18999,8,128,Exynos 1380,50,6000,6.6,120,25,budget,real
+Galaxy M55 5G,M,2024,26999,8,128,Snapdragon 7 Gen1,50,5000,6.7,120,45,gaming,real
+Galaxy F15 5G,F,2024,12499,6,128,Dimensity 6100+,50,6000,6.5,90,25,budget,real
+Galaxy F55 5G,F,2024,26999,8,128,Snapdragon 7 Gen1,50,5000,6.7,120,45,gaming,real
+Galaxy A16 5G,A,2025,16999,6,128,Dimensity 6300,50,5000,6.7,90,25,budget,real
+Galaxy A26 5G,A,2025,21999,8,128,Exynos 1380,50,5000,6.7,120,25,budget,real
+Galaxy A36 5G,A,2025,26999,8,128,Snapdragon 6 Gen3,50,5000,6.7,120,45,business,real
+Galaxy A56 5G,A,2025,35999,8,128,Exynos 1580,50,5000,6.7,120,45,business,real
+Galaxy M16 5G,M,2025,13999,6,128,Dimensity 6300,50,6000,6.7,90,25,budget,real
+Galaxy M56 5G,M,2025,27999,8,128,Exynos 1580,50,5000,6.7,120,45,gaming,real
+Galaxy F16 5G,F,2025,13499,6,128,Dimensity 6300,50,6000,6.7,90,25,budget,real
+Galaxy S26,S,2026,89999,12,256,Snapdragon 8 Elite Gen2,50,4300,6.3,120,45,business,mock
+Galaxy S26+,S,2026,109999,12,256,Snapdragon 8 Elite Gen2,50,4900,6.7,120,45,business,mock
+Galaxy S26 Ultra,S-Ultra,2026,139999,12,512,Snapdragon 8 Elite Gen2,200,5200,6.9,120,65,photography,mock
+Galaxy S26 FE,S-FE,2026,62999,8,128,Exynos 2500,50,4900,6.7,120,45,gaming,mock
+Galaxy Z Flip8,Z-Flip,2026,119999,12,256,Snapdragon 8 Elite Gen2,50,4400,6.9,120,25,business,mock
+Galaxy Z Fold8,Z-Fold,2026,184999,12,256,Snapdragon 8 Elite Gen2,200,4800,8.2,120,25,business,mock
+Galaxy A57 5G,A,2026,37999,8,256,Exynos 1680,50,5000,6.7,120,45,business,mock
+Galaxy A17 5G,A,2026,17999,6,128,Dimensity 6400,50,5000,6.7,90,25,budget,mock
+Galaxy M57 5G,M,2026,28999,8,128,Exynos 1580,50,5000,6.7,120,45,gaming,mock

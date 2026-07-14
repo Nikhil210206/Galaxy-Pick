@@ -12,7 +12,7 @@
 4. **No over-engineering.** No backend server, no database, no auth, no caching layer. Data is a flat CSV; the app is Streamlit calling in-process Python functions.
 5. **Currency is INR (₹).**
 6. **Dataset = 2024–2026, one row per model (~36 rows).** 2024–2025 rows are real; **every 2026 row is `spec_source=mock`** and must be presented as a projection, never as fact. Never pad with fabricated model names.
-7. **The AI agent must NOT create git commits or appear in author history.** Generate/modify files only. After each phase, print the suggested commit message from `PLAN.md` — the human runs `git` themselves.
+7. **The AI agent must NOT create git commits or appear in author history.** Generate/modify files only. Print the suggested commit message from `PLAN.md` §10 — the human runs `git` themselves. **No `Co-Authored-By` trailer**, ever.
 
 ## Stack (all free / OSS)
 Python 3.11 (Anaconda) · pandas · numpy · Jupyter · Streamlit · matplotlib · pytest · python-dotenv · google-generativeai *(optional)*.
@@ -31,9 +31,9 @@ pytest -q                                         # tests
 `src/recommender/` is the **single source of truth**, imported by BOTH the notebook and the app. Never duplicate logic in the notebook or the app.
 - `config.py` — paths + `GEMINI_ENABLED` flag (True only if a key is actually present).
 - `data.py` — load & validate `phones.csv`.
-- `scoring.py` — raw specs → four 0–10 scores (camera / performance / battery / value). Formulas in `PLAN.md` Appendix B.
+- `scoring.py` — raw specs → four 0–10 scores (camera / performance / battery / value). Formulas in `PLAN.md` Appendix B. **`camera_score` ranks on series optics tier, not megapixels** — MP takes only two values across the catalog, so it can't discriminate.
 - `personas.py` — 4 personas, each with a weight vector that sums to 1.0.
-- `wsm.py` — budget filter → weighted sum → rank → top-N.
+- `wsm.py` — budget filter → **normalize the pool** → weighted sum → rank → top-N. The normalize step is load-bearing: influence in a weighted sum is weight × spread, so unscaled criteria silently re-weight the model (see `PLAN.md` B.4).
 - `nlp_parse.py` — free-text → `{weights, budget_max, form_factor, must_haves}`; Gemini if enabled else rule-based; **always validated** before use.
 - `explain.py` — template "why" string (+ optional Gemini polish).
 
@@ -42,8 +42,9 @@ pytest -q                                         # tests
 
 ## Definition of done
 - `phones.csv`: ~36 rows, `launch_year ∈ {2024,2025,2026}`, all 2026 rows `spec_source=mock`, every score ∈ [0,10], no nulls in required columns.
-- Notebook runs top-to-bottom (Restart & Run All) and contains 3 EDA findings + the WSM worked example.
-- App: each persona → correct top-3; free-text "photography under ₹50k" → camera-weighted, in-budget results.
+- Notebook runs top-to-bottom (Restart & Run All) and contains 3 EDA findings + the WSM worked example (`7.5`).
+- App: each persona → correct top-3, **matching the notebook** (expected picks are tabled in `PLAN.md` B.4); free-text "photography under ₹50k" → camera-weighted, in-budget results.
+- **Personas must disagree.** If every persona returns the same phone, the WSM is broken — that's the exact failure the normalize step fixes, and `tests/test_wsm.py` guards it.
 - **Fallback drill:** with no key and no network, NL parsing + explanations still work.
 - `pytest` green.
 
