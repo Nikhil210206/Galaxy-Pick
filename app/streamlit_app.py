@@ -265,14 +265,15 @@ def screen_personas():
         "<div style='text-align:center'>"
         "<div class='gp-label'>Step 1 of 3</div><div style='height:8px'></div>"
         "<div class='gp-page-title'>What best describes you?</div>"
-        "<div class='gp-body'>Pick the profile closest to how you actually use a phone. "
-        "You can fine-tune everything in the next step.</div></div>"
+        "<div class='gp-body'>Tell us a bit about your lifestyle and we'll rank the whole "
+        "Galaxy line against it — no forms to fill in.</div></div>"
         "<div style='height:40px'></div>",
         unsafe_allow_html=True,
     )
     items = list(personas.PERSONAS.items())
     for row_start in (0, 2):
         for col, (name, p) in zip(st.columns(2, gap="large"), items[row_start:row_start + 2]):
+            chosen = st.session_state.persona == name
             with col, card(f"gp_persona_{row_start}_{name[:4]}"):
                 lead = max(p["weights"], key=p["weights"].get)
                 st.markdown(
@@ -283,14 +284,30 @@ def screen_personas():
                     "<div style='height:12px'></div>",
                     unsafe_allow_html=True,
                 )
-                if st.button("Select", key=f"persona_{name}", type="primary"):
+                # Select marks the card; "Continue with Selection" below does the navigating,
+                # exactly as the design lays it out.
+                if st.button("Selected ✓" if chosen else "Select", key=f"persona_{name}",
+                             type="primary" if chosen else "secondary"):
                     st.session_state.persona = name
                     set_weights(p["weights"])
                     st.session_state.budget_max = int(p["budget_max"])
                     st.session_state.free_text = ""
                     st.session_state.parse_note = None
-                    go("custom")
+                    # A persona answers on its own terms — don't carry over spec filters or a
+                    # form factor left behind by an earlier "Build my own" run.
+                    st.session_state.filters = {}
+                    st.session_state.form_factor = "any"
+                    st.rerun()
         st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
+
+    _, mid, _ = st.columns([1, 1.2, 1])
+    with mid:
+        if st.button("Continue with Selection", key="persona_continue", type="primary",
+                     disabled=st.session_state.persona is None):
+            go("analyzing")
+        if st.session_state.persona is None:
+            st.markdown("<div class='gp-caption' style='text-align:center'>"
+                        "Pick a profile to continue.</div>", unsafe_allow_html=True)
 
 
 def screen_custom():
@@ -582,13 +599,18 @@ def screen_results():
     with cta:
         st.markdown(
             "<div class='gp-cta'><h3>Not seeing the perfect match?</h3>"
-            "<div style='opacity:.85'>Retake the quiz to refine your recommendations.</div></div>",
+            "<div style='opacity:.85'>Retake the quiz, or tune the priorities and specs "
+            "yourself — your current answers carry over.</div></div>",
             unsafe_allow_html=True,
         )
     with btn:
         st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
         if st.button("Retake Quiz", key="retake"):
             go("personas")
+        # The persona path now goes straight to results, so this is how a persona shopper
+        # reaches the sliders — starting from their persona's weights rather than a blank form.
+        if st.button("Fine-tune this", key="refine"):
+            go("custom")
 
     full = wsm.recommend(df, st.session_state.weights, budget_max=st.session_state.budget_max,
                          form_factor=st.session_state.form_factor, top_n=len(df),
