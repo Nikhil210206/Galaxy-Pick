@@ -1,24 +1,37 @@
-"""Design tokens + CSS, ported from the Stitch project's DESIGN.md.
+"""Design tokens + CSS, ported from the Stitch project.
 
 Source: stitch.withgoogle.com/projects/18177589114052184530 ("Galaxy Pick System").
-Values are copied from that design system rather than eyeballed from screenshots, so
-a design change can be re-ported by diffing DESIGN.md against this file.
+Ported from the generated screens' own Tailwind config and <style> block — NOT from
+DESIGN.md's prose, which disagrees with what the screens render, and not from screenshots.
+Pull a screen's HTML via the stitch MCP (`list_screens` → htmlCode.downloadUrl) to re-diff.
 
-Two deliberate deviations from the Stitch output, both forced by CLAUDE.md:
+Deliberate deviations from the Stitch output, each forced by CLAUDE.md:
   * prices render in ₹, not the design's $ (rule 5);
-  * product shots are local SVG placeholders, not the design's hosted photography —
-    the app must run with no network at all (rule 2).
+  * the design's images are downloaded into app/assets/ and inlined, not hot-linked from
+    lh3.googleusercontent.com — the app must run with no network at all (rule 2);
+  * no #shader-canvas background: it is WebGL driven by a <script>, and Streamlit strips
+    scripts from st.markdown. Reproducing it needs an iframe, which cannot sit behind the
+    page. The static gradient below stands in for it.
 """
+import base64
+from functools import lru_cache
+from pathlib import Path
 
 # --- colour ---------------------------------------------------------------
-PRIMARY = "#1428A0"          # Samsung Blue — key actions, active states only
-PRIMARY_DEEP = "#001278"
-BG = "#F6F7FB"               # cool-toned canvas; never pure white
-SURFACE = "#FFFFFF"          # elevated interactive components
-SUBTLE = "#F2F4F8"           # secondary buttons, input fields
-BORDER = "#E5E7EB"
-TEXT = "#1A1B22"
-TEXT_VARIANT = "#454653"
+# Values are the Tailwind token map the Stitch screens actually render with, not the prose
+# in DESIGN.md's "Colors" section — the two disagree. The prose says background #F6F7FB and
+# border #E5E7EB; every generated screen ships `background: #fbf8ff` and outline-variant
+# #c5c5d5. The rendered tokens win: they are what the design looks like.
+PRIMARY = "#001278"          # token `primary` — brand wordmark, active nav link
+PRIMARY_CONTAINER = "#1428A0"  # token `primary-container` — Samsung Blue: CTAs, the "Galaxy" word
+PRIMARY_DEEP = "#000D60"     # token `on-primary-fixed` — pressed/hover
+BG = "#FBF8FF"               # token `background`/`surface`
+SURFACE = "#FFFFFF"          # token `surface-container-lowest` — elevated components
+SUBTLE = "#EFECF7"           # token `surface-container`
+SUBTLE_HIGH = "#E9E7F1"      # token `surface-container-high`
+BORDER = "#C5C5D5"           # token `outline-variant`
+TEXT = "#1A1B22"             # token `on-surface`
+TEXT_VARIANT = "#454653"     # token `on-surface-variant`
 WARNING = "#8A5A00"
 WARNING_BG = "#FFF4E0"
 
@@ -70,11 +83,45 @@ h1, h2, h3 {{ color: {TEXT}; letter-spacing: -0.01em; }}
    !important, and at equal specificity the later rule (theirs) wins — so the width silently
    stayed at the padded content width even though the negative margins applied. */
 .stApp .st-key-gp_nav {{
-    background: {SURFACE}; border-bottom: 1px solid {BORDER};
+    /* .nav-blur from the Stitch screens: translucent + backdrop blur, NOT solid white */
+    background: rgba(251, 248, 255, 0.8);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid {BORDER};
     margin-left: -{EDGE}px; margin-right: -{EDGE}px; margin-bottom: 40px;
     padding: 12px {EDGE}px;
     width: calc(100% + {EDGE * 2}px) !important;
     max-width: calc(100% + {EDGE * 2}px) !important;
+    position: sticky; top: 0; z-index: 99;
+}}
+
+/* Glassmorphism, straight from the design's .glass-effect */
+.gp-glass {{
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    background-color: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}}
+
+/* Entrance + idle motion, from the design's keyframes */
+@keyframes slideUpFade {{
+    from {{ opacity: 0; transform: translateY(20px); }}
+    to   {{ opacity: 1; transform: translateY(0); }}
+}}
+.gp-stagger-1 {{ animation: slideUpFade .8s ease-out forwards; }}
+.gp-stagger-2 {{ animation: slideUpFade .8s ease-out .2s forwards; opacity: 0; }}
+.gp-stagger-3 {{ animation: slideUpFade .8s ease-out .4s forwards; opacity: 0; }}
+.gp-stagger-4 {{ animation: slideUpFade .8s ease-out .6s forwards; opacity: 0; }}
+@keyframes float {{
+    0%   {{ transform: translateY(0px); }}
+    50%  {{ transform: translateY(-15px); }}
+    100% {{ transform: translateY(0px); }}
+}}
+.gp-float {{ animation: float 6s ease-in-out infinite; }}
+.gp-hover-scale {{ transition: transform .4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }}
+.gp-hover-scale:hover {{ transform: scale(1.05); }}
+@media (prefers-reduced-motion: reduce) {{
+    .gp-stagger-1, .gp-stagger-2, .gp-stagger-3, .gp-stagger-4, .gp-float {{
+        animation: none; opacity: 1;
+    }}
 }}
 .st-key-gp_nav [data-testid="stVerticalBlockBorderWrapper"] {{
     background: transparent; box-shadow: none; border: none; padding: 0;
@@ -104,15 +151,33 @@ h1, h2, h3 {{ color: {TEXT}; letter-spacing: -0.01em; }}
     background: transparent; box-shadow: none; padding: 0;
 }}
 
-/* --- buttons: pill; primary blue, secondary #F2F4F8 -------------------- */
+/* --- buttons: pill; primary Samsung Blue, secondary tonal ------------- */
 .stButton > button {{
     border-radius: 9999px; border: none; background: {SUBTLE}; color: {TEXT};
     font-family: Inter, sans-serif; font-size: 16px; font-weight: 600;
     padding: 8px 24px; width: 100%; transition: background .15s ease;
 }}
-.stButton > button:hover {{ background: #E6E9F0; color: {TEXT}; }}
-.stButton > button[kind="primary"] {{ background: {PRIMARY}; color: #FFFFFF; padding: 12px 32px; }}
+.stButton > button:hover {{ background: {SUBTLE_HIGH}; color: {TEXT}; }}
+.stButton > button[kind="primary"] {{ background: {PRIMARY_CONTAINER}; color: #FFFFFF; padding: 12px 32px; }}
 .stButton > button[kind="primary"]:hover {{ background: {PRIMARY_DEEP}; color: #FFFFFF; }}
+
+/* --- nav links: text with an underline on the active one, not pills ----
+   The design's nav is <a> elements — `font-bold text-primary border-b-2` when active,
+   `text-on-surface-variant` otherwise. Streamlit only gives us buttons, so strip them back
+   to look like links rather than leaving four grey pills floating in the bar. */
+.st-key-gp_nav .stButton > button {{
+    background: transparent !important; border-radius: 0 !important;
+    color: {TEXT_VARIANT}; font-weight: 700; padding: 4px 0 !important;
+    border-bottom: 2px solid transparent !important; width: auto;
+    transition: color .2s ease, border-color .2s ease;
+}}
+.st-key-gp_nav .stButton > button:hover {{
+    background: transparent !important; color: {PRIMARY};
+}}
+.st-key-gp_nav .stButton > button[kind="primary"] {{
+    background: transparent !important; color: {PRIMARY};
+    border-bottom: 2px solid {PRIMARY} !important; padding: 4px 0 !important;
+}}
 
 /* --- inputs: grey fill, 12px radius, no border; blue focus ring -------- */
 .stTextInput > div > div > input {{
@@ -160,6 +225,19 @@ h1, h2, h3 {{ color: {TEXT}; letter-spacing: -0.01em; }}
 .gp-cta h3 {{ color: #FFFFFF; margin: 0 0 8px 0; }}
 </style>
 """
+
+
+@lru_cache(maxsize=None)
+def asset(name):
+    """A design image as a base64 data URI.
+
+    The images are the Stitch project's own, downloaded into app/assets/ rather than
+    hot-linked: the design points at lh3.googleusercontent.com, and the demo has to run with
+    no network at all (rule 2). Inlining as a data URI keeps full CSS control (object-contain,
+    the float animation, drop shadows) which st.image would not give us.
+    """
+    path = Path(__file__).parent / "assets" / name
+    return "data:image/jpeg;base64," + base64.b64encode(path.read_bytes()).decode()
 
 
 def money(rupees):

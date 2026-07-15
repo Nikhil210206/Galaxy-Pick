@@ -108,6 +108,10 @@ def nav():
     closes immediately and does NOT wrap the widgets that follow, which is what left the
     four links floating below the bar instead of in it.
     """
+    # Which nav item owns the current screen — the design underlines the active one.
+    owner = {"landing": "landing", "choose": "choose", "personas": "choose", "custom": "choose",
+             "analyzing": "choose", "results": "choose", "details": "choose",
+             "compare": "compare", "about": "about"}.get(st.session_state.screen)
     with st.container(key="gp_nav"):
         brand, home, recs, comp, about = st.columns(
             [5, 1, 1.7, 1, 1], vertical_alignment="center")
@@ -119,7 +123,9 @@ def nav():
              ("Compare", "compare"), ("About", "about")],
         ):
             with col:
-                if st.button(label, key=f"nav_{screen}"):
+                # "primary" is what the CSS hooks to draw the active underline
+                if st.button(label, key=f"nav_{screen}",
+                             type="primary" if owner == screen else "secondary"):
                     go(screen)
 
 
@@ -156,16 +162,17 @@ def price_block(row, size=22):
 
 # --- screens --------------------------------------------------------------
 def screen_landing():
-    hero, art = st.columns([1, 1.1], gap="large")
+    hero, art = st.columns([1, 1.1], gap="large", vertical_alignment="center")
     with hero:
         st.markdown("<div style='height:48px'></div>", unsafe_allow_html=True)
+        # tracking-tighter + the primary-container accent on "Galaxy", per the design
         st.markdown(
-            "<div class='gp-hero'>Find Your Perfect<br/>"
-            f"<span style='color:{theme.PRIMARY}'>Galaxy</span></div>"
+            "<div class='gp-hero gp-stagger-1'>Find Your Perfect<br/>"
+            f"<span style='color:{theme.PRIMARY_CONTAINER}'>Galaxy</span></div>"
             "<div style='height:16px'></div>"
-            "<div class='gp-body' style='max-width:420px'>Tell us how you actually use a "
-            "phone — or set the specs yourself — and we'll rank the Galaxy line against "
-            "your priorities, and show our working.</div>",
+            "<div class='gp-body gp-stagger-2' style='max-width:512px;font-size:18px'>"
+            "Tell us how you actually use a phone — or set the specs yourself — and we'll "
+            "rank the Galaxy line against your priorities, and show our working.</div>",
             unsafe_allow_html=True,
         )
         st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
@@ -173,20 +180,19 @@ def screen_landing():
             go("choose")
         p = data.provenance(df)
         st.markdown(
-            f"<div style='height:24px'></div>"
-            f"<span class='gp-chip'>Transparent scoring</span>"
-            f"<span class='gp-chip'>{p['total']} models · 2024–2026</span>"
-            f"<span class='gp-chip'>Works offline</span>",
+            "<div style='height:24px'></div><div class='gp-stagger-4' style='opacity:.7'>"
+            "<span class='gp-chip gp-glass'>Transparent scoring</span>"
+            f"<span class='gp-chip gp-glass'>{p['total']} models · 2024–2026</span>"
+            "<span class='gp-chip gp-glass'>Works offline</span></div>",
             unsafe_allow_html=True,
         )
     with art:
+        # The design's own hero shot: object-contain, drop shadow, gently floating.
         st.markdown(
-            f"<div style='background:{theme.SURFACE};border-radius:{theme.RADIUS_CARD};"
-            f"box-shadow:{theme.SHADOW};padding:32px;display:flex;gap:16px;"
-            "justify-content:center;align-items:center;'>"
-            + "".join(cards.placeholder_svg(m, s) for m, s in
-                      df.nlargest(3, "price_inr")[["model_name", "series"]].values)
-            + "</div>",
+            f"<img src='{theme.asset('hero_devices.jpg')}' alt='Premium Samsung Galaxy devices' "
+            f"class='gp-float' style='width:100%;height:auto;object-fit:contain;"
+            f"border-radius:{theme.RADIUS_CARD};"
+            "filter:drop-shadow(0 25px 25px rgba(0,0,0,0.15));'/>",
             unsafe_allow_html=True,
         )
 
@@ -227,22 +233,26 @@ def screen_choose():
         unsafe_allow_html=True,
     )
     left, right = st.columns(2, gap="large")
-    with left:
+    # Both buttons belong INSIDE their card, as the design has them — a raw <div> from
+    # st.markdown closes before the button renders and leaves it stranded underneath.
+    with left, card("gp_path_persona"):
         st.markdown(
-            "<div class='gp-card' style='text-align:center'>"
+            "<div style='text-align:center'>"
             "<div class='gp-section-title'>What best describes you?</div>"
-            "<div class='gp-body' style='font-size:14px'>Choose a lifestyle that matches "
-            "how you use your phone.</div></div>",
+            "<div class='gp-body' style='font-size:14px;min-height:48px'>Choose a lifestyle "
+            "that matches how you use your phone.</div></div>"
+            "<div style='height:8px'></div>",
             unsafe_allow_html=True,
         )
         if st.button("Start Here", key="path_persona", type="primary"):
             go("personas")
-    with right:
+    with right, card("gp_path_custom"):
         st.markdown(
-            "<div class='gp-card' style='text-align:center'>"
+            "<div style='text-align:center'>"
             "<div class='gp-section-title'>Build My Own Preferences</div>"
-            "<div class='gp-body' style='font-size:14px'>Describe it in plain English, then "
-            "tune the priorities and specs yourself.</div></div>",
+            "<div class='gp-body' style='font-size:14px;min-height:48px'>Describe it in plain "
+            "English, then tune the priorities and specs yourself.</div></div>"
+            "<div style='height:8px'></div>",
             unsafe_allow_html=True,
         )
         if st.button("Customize", key="path_custom"):
@@ -507,9 +517,13 @@ def screen_results():
     best = top3.iloc[0]
     art, info = st.columns([1, 1.4], gap="large", vertical_alignment="center")
     with art:
+        # The design's "Top Recommendation" art. It is a Galaxy line-up, not a shot of this
+        # specific phone — decorative, exactly as Stitch uses it. The provenance panel says so.
         st.markdown(
-            f"<div class='gp-card' style='display:flex;justify-content:center;'>"
-            f"{cards.placeholder_svg(best['model_name'], best['series'])}</div>",
+            f"<div style='border-radius:{theme.RADIUS_CARD};overflow:hidden;"
+            f"box-shadow:{theme.SHADOW};'>"
+            f"<img src='{theme.asset('rec_top.jpg')}' alt='Galaxy range' class='gp-hover-scale' "
+            "style='width:100%;height:100%;object-fit:cover;display:block;'/></div>",
             unsafe_allow_html=True,
         )
     with info, card("gp_best"):
@@ -538,9 +552,17 @@ def screen_results():
     st.markdown("<div style='height:40px'></div>"
                 "<div class='gp-section-title'>Other Great Options</div>"
                 "<div style='height:16px'></div>", unsafe_allow_html=True)
-    for col, (_, row) in zip(st.columns(2, gap="large"), list(top3.iloc[1:].iterrows())):
+    alt_art = ["rec_alt_1.jpg", "rec_alt_2.jpg"]
+    for i, (col, (_, row)) in enumerate(zip(st.columns(2, gap="large"),
+                                            list(top3.iloc[1:].iterrows()))):
         with col, card("gp_alt_" + str(row["model_name"]).replace(" ", "_")):
+            # Illustrative Galaxy photography from the design — one image per card slot, as
+            # Stitch lays it out, not a photo of this particular model.
             st.markdown(
+                f"<div style='border-radius:{theme.RADIUS_NESTED};overflow:hidden;"
+                "margin:-8px 0 12px 0;height:150px;'>"
+                f"<img src='{theme.asset(alt_art[i % len(alt_art)])}' alt='Galaxy devices' "
+                "style='width:100%;height:100%;object-fit:cover;display:block;'/></div>"
                 f"<span class='gp-chip'>{row['match_score']}/10 match</span>"
                 f"<div style='height:8px'></div>"
                 f"<div class='gp-section-title'>{row['model_name']}</div>"
@@ -711,6 +733,9 @@ def provenance_panel():
             f"({int(scoring.DEPRECIATION['flagship']*100)}%/yr retained for flagships, "
             f"{int(scoring.DEPRECIATION['mid']*100)}% mid, {int(scoring.DEPRECIATION['budget']*100)}% budget). "
             "Real prices move with stock and offers; treat these as indicative.\n"
+            "- **Product photography is illustrative.** The images are the design's stock "
+            "Galaxy range shots, not photographs of the specific model on the card — the "
+            "catalog has no per-model imagery. Judge a phone by its specs here, not its picture.\n"
             "- **Scores are transparent heuristics, not benchmarks.** `camera_score` reflects "
             "series optics tier, not lab testing.\n"
             "- `value_score` is price-driven by construction, so it structurally favours "

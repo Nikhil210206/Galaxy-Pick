@@ -26,3 +26,38 @@ def test_money_uses_indian_digit_grouping():
     assert theme.money(68200) == "₹68,200"
     assert theme.money(999) == "₹999"
     assert theme.money(1200) == "₹1,200"
+
+
+# --- ported from the screens' real CSS, not DESIGN.md's prose ------------
+
+def test_uses_the_rendered_token_values_not_the_prose():
+    """DESIGN.md's prose says background #F6F7FB / border #E5E7EB; every generated screen
+    actually ships #fbf8ff and #c5c5d5. The rendered tokens are what the design looks like."""
+    assert theme.BG.upper() == "#FBF8FF"
+    assert theme.BORDER.upper() == "#C5C5D5"
+    assert theme.PRIMARY.upper() == "#001278"            # brand wordmark / active nav
+    assert theme.PRIMARY_CONTAINER.upper() == "#1428A0"  # Samsung Blue: CTAs
+
+
+def test_carries_the_designs_signature_effects():
+    for rule in ["backdrop-filter", "gp-glass", "slideUpFade", "gp-float", "gp-hover-scale"]:
+        assert rule in theme.CSS, f"{rule} missing — the design's look depends on it"
+
+
+# --- assets --------------------------------------------------------------
+
+def test_design_images_are_local_and_inlined():
+    """The design hot-links lh3.googleusercontent.com; the demo must run with no network,
+    so the images live in app/assets/ and are inlined as data URIs."""
+    for name in ["hero_devices.jpg", "rec_top.jpg", "rec_alt_1.jpg", "rec_alt_2.jpg"]:
+        uri = theme.asset(name)
+        assert uri.startswith("data:image/jpeg;base64,")
+        assert len(uri) > 5000
+
+
+def test_no_remote_image_hosts_in_the_app():
+    from pathlib import Path
+    src = Path("app/streamlit_app.py").read_text() + theme.CSS
+    for host in ["lh3.googleusercontent.com", "contribution.usercontent.google.com",
+                 "cdn.tailwindcss.com"]:
+        assert host not in src, f"{host} would make the demo depend on the network"
