@@ -1,6 +1,7 @@
 # Galaxy-Pick
 
 (A Capstone project for Samsung [SIC])
+
 A Samsung Galaxy phone recommender. Pick a persona — or just type what you want in plain English — and get a **ranked top-3** with a one-line reason for each.
 
 Built for the Samsung GenAI capstone (PJ1). The graded analytical core is the notebook; the demo is a Streamlit app. Both import the **same engine** from `src/recommender/`, so they can never disagree.
