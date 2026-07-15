@@ -21,11 +21,31 @@ KEYWORDS = {
 }
 
 _BUDGET_RE = re.compile(r"(?:under|below|less than|within|upto|up to)\s*(?:₹|rs\.?|inr)?\s*(\d+(?:,\d+)*)\s*(k|thousand|lakh|l)?", re.I)
+
+# "I don't mind the budget" used to *boost* value, because the keyword "budget" is there and
+# nothing looked left of it. The shopper said the opposite of what we heard. This matches a
+# dismissal immediately before a keyword ("don't care about price", "money no object") and
+# suppresses that factor instead of boosting it. It is a rule parser, not a language model:
+# it catches the common phrasings, and unmatched ones simply fall back to no boost.
+_NEGATION_RE = re.compile(
+    r"\b(?:no|not|dont|don't|do not|doesnt|doesn't|never)\s+"
+    r"(?:really\s+)?(?:mind|care|worry|bother|bothered)\b(?:\s+(?:about|for|regarding))?"
+    r"|\bregardless of\b|\bno limit on\b|\bno cap on\b|\birrespective of\b|\bwhatever the\b",
+    re.I,
+)
+_MONEY_NO_OBJECT_RE = re.compile(r"\b(?:money|cost|price|budget)\s+(?:is\s+)?no\s+(?:object|issue|problem|bar)\b", re.I)
+
+# A dismissal governs its own clause and stops there. "I don't mind the budget, I want the
+# best camera" must suppress value WITHOUT swallowing the camera clause behind it — so the
+# span ends at the next clause boundary. "and"/"or" are deliberately NOT boundaries: they
+# continue a dismissal ("don't care about camera and battery").
+_CLAUSE_END_RE = re.compile(r"[,;.!?]|\bbut\b|\bthough\b|\bhowever\b|\bjust\b|\bonly\b|\bi (?:want|need|prefer)\b", re.I)
+NEGATION_WINDOW = 60      # hard cap when a clause runs on with no boundary at all
 _COMPACT_RE = re.compile(r"\b(compact|small|one[- ]hand(ed)?|pocket)\b", re.I)
 _FOLDABLE_RE = re.compile(r"\b(fold|folds|foldable|flip|flips)\b", re.I)
 
 
-def _renormalize(weights):
+def renormalize(weights):
     """Force the four weights onto a valid simplex summing to 1.0."""
     clean = {}
     for f in FACTORS:
@@ -63,6 +83,25 @@ def _parse_form_factor(text):
     return "any"
 
 
+def _dismissed_spans(text):
+    """Character ranges the shopper has waved away ("I don't mind …", "money no object")."""
+    spans = []
+    for m in _NEGATION_RE.finditer(text):
+        start = m.end()
+        boundary = _CLAUSE_END_RE.search(text, start)
+        end = min(boundary.start() if boundary else len(text), start + NEGATION_WINDOW)
+        spans.append((start, end))
+    # "money is no object" contains its own factor word, so the match itself is the span —
+    # reaching left of it just swallows the neighbouring clause ("best camera, money is...").
+    spans += [(m.start(), m.end()) for m in _MONEY_NO_OBJECT_RE.finditer(text)]
+    return spans
+
+
+def _is_dismissed(low, word, spans):
+    return any(any(s <= m.start() < e for s, e in spans)
+               for m in re.finditer(re.escape(word), low))
+
+
 def parse_rules(text):
     """The deterministic fallback. Never raises, never touches the network."""
     text = (text or "").strip()
@@ -70,15 +109,21 @@ def parse_rules(text):
         return {"weights": dict(NEUTRAL), "budget_max": None, "form_factor": "any", "must_haves": []}
 
     low = text.lower()
+    spans = _dismissed_spans(low)
     weights = dict(NEUTRAL)
     must_haves = []
     for factor, words in KEYWORDS.items():
-        if any(w in low for w in words):
-            weights[factor] += BOOST
-            must_haves.append(factor)
+        hits = [w for w in words if w in low]
+        if not hits:
+            continue
+        # a factor only counts if at least one mention of it isn't inside a dismissal
+        if all(_is_dismissed(low, w, spans) for w in hits):
+            continue
+        weights[factor] += BOOST
+        must_haves.append(factor)
 
     return {
-        "weights": _renormalize(weights),   # gibberish → all neutral, still sums to 1
+        "weights": renormalize(weights),   # gibberish → all neutral, still sums to 1
         "budget_max": _parse_budget(low),
         "form_factor": _parse_form_factor(low),
         "must_haves": must_haves,
@@ -105,7 +150,7 @@ def _validate(raw):
     weights = raw.get("weights")
     if not isinstance(weights, dict) or not all(f in weights for f in FACTORS):
         raise ValueError("weights missing one of the four factors")
-    weights = _renormalize(weights)
+    weights = renormalize(weights)
 
     budget = raw.get("budget_max")
     if budget is not None:

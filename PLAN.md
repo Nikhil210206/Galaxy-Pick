@@ -442,29 +442,43 @@ def value_score_column(df):
 > `rear_camera_mp` takes only **two distinct values across all 36 phones** (50 and 200), 31 of them 50MP, and every 200MP phone costs **≥ ₹1,39,999**. Scoring on megapixels therefore said a ₹12,499 F15 and a ₹87,559 S24 have the same camera, and couldn't separate *any* two phones below ₹1.4 lakh. A criterion that never varies can't influence a ranking, so `value_score` decided every persona by default and the WSM rated **the cheapest phone in the catalog as the best photography phone**. What actually differs between these cameras is sensor size, OIS, zoom and ISP — and those track the series tier, so that's what leads now, with MP demoted to a small bonus.
 
 ### B.2 Plain-English logic (paste into the notebook + slides)
-- **camera_score:** series optics tier (Ultra 9.0 → S 8.0 → Fold 7.6 → FE 7.2 → Flip 7.0 → A 5.8 → M 5.2 → F 5.0) + a small megapixel bonus (50→+0.2, 64→+0.4, 108→+0.7, 200→+1.0). *Caveat: MP ≠ image quality, which is exactly why optics leads — but the tier is still our judgement, not a lab test.*
-- **performance_score:** chipset tier (flagship Snapdragon/Exynos high, entry Dimensity/Exynos low) + RAM adjustment (6/8/12 GB → −0.3/0/+0.6) + 0.3 for 120 Hz.
+- **camera_score:** series optics tier (Ultra 8.6 → S 7.6 → Fold 7.2 → FE 6.8 → Flip 6.6 → A 5.4 → M 4.8 → F 4.6) + a megapixel bonus (50→+0.2, 64→+0.4, 108→+0.7, 200→+1.0) + **0.2 per generation since 2024**. *Caveat: MP ≠ image quality, which is exactly why optics leads — but the tier is still our judgement, not a lab test.*
+- **performance_score:** chipset tier (8 Elite Gen 5 9.3 → 8 Elite 8.8 → Exynos 2600 8.6 → 8 Gen3 8.2 → … → Dimensity 6100+ 3.5) + RAM adjustment (4/8/12 GB → −0.2/0/+0.4) + 0.3 for 120 Hz. **A chipset absent from `CHIPSET_TIER` silently scores `CHIPSET_DEFAULT` (3.5, the lowest tier)** — when the real 2026 sheets landed, four live chipsets were missing and would have ranked the S26 Ultra last with no error. `build_dataset.py` now asserts every chipset is known.
 - **battery_score:** capacity scaled 3700→6000 mAh onto 5.0→9.5, + 0.6 for ≥45 W charging, − 0.4 for big ≥7″ foldable screens.
-- **value_score:** *emergent* — (camera+performance+battery) per ₹10,000, min-max scaled 0–10. Budget M/F models score high; flagships score low.
+- **value_score:** *emergent* — (camera+performance+battery) per ₹10,000 of **current** price, min-max scaled 0–10. Budget M/F models score high; new flagships score low.
+- **price_inr:** the **estimated street price at `CATALOG_YEAR` (2026)**, not launch MSRP. `launch_price_inr` keeps the real MSRP; `price_inr = launch × retention^age` (flagship 0.68/yr, mid 0.80, budget 0.85), flagged `price_source=depreciation_model`. 2026 rows sit at MSRP (`price_source=launch_msrp`).
+
+> **Two ceilings were hiding the whole top of the catalog (Ch.4 slide material).**
+> The tier tables used to overflow 10.0 and get flattened by `_clamp`: a 2024 Snapdragon 8 Gen3 and a 2026 8 Elite Gen2 both scored **exactly 10.0**, so the WSM could not separate four chipset generations, and an S24 Ultra tied an S26 Ultra on camera *and* performance. Tiers are now sized so tier + every bonus lands on exactly 10.0 and nothing clamps — `tests/test_scoring.py::test_clamp_never_binds_on_the_real_catalog` guards it. Flagship tiers are spaced ~0.5 apart and RAM is capped at +0.4 so **one chipset generation outweighs 8→12 GB**; the reverse let a 12 GB 2024 S24 Ultra outscore an 8 GB 2025 S25 on performance. And `camera_score` gained the generation term because nothing else in the model knew that a two-year-old sensor is a two-year-old sensor.
+
+> **Prices must age (this is why the demo looked broken).**
+> The seed stores launch MSRP. Left unaged, an S24 Ultra and an S25 Ultra both listed at **₹1,47,559 in 2026** — identical, and absurd for a two-year-old phone — and `value_score` rated a discounted flagship as badly as a new one. Depreciation is applied **at build time**, never at runtime: no network, reproducible, and explainable. It is an *estimate*, and the UI and provenance panel both say so. A live price API was considered and rejected: Grok is banned outright, Gemini is an LLM with no retail feed (it would hallucinate a different number each run), runtime fetching breaks the offline rule, and no API has prices for the projected S26 line anyway.
 
 ### B.3 Personas (`personas.py`, write verbatim — each weight vector sums to 1.0)
+
+> **Labels are segment names, not named characters** (decided 2026-07-15). This is an
+> official-Samsung-toned project, and these labels match the taxonomy the dataset already
+> uses in its own `segment` column. The four **weight vectors are unchanged** from the
+> original Priya/Arjun/Meera/Rahul cut, so the B.4 table and the `7.5` worked example
+> below still hold — do not "restore" the old names.
+
 ```python
 # src/recommender/personas.py
 PERSONAS = {
-    "Priya — Photography enthusiast": {
-        "story": "24, shoots daily. Wants the best camera; screen matters; gaming doesn't.",
+    "Photography-first": {
+        "story": "Shoots daily and prints the results. Optics lead; screen matters; gaming doesn't.",
         "weights": {"camera": 0.50, "performance": 0.10, "battery": 0.20, "value": 0.20},
         "budget_max": 80000},
-    "Arjun — Mobile gamer": {
-        "story": "21, competitive gamer. Raw performance + battery for long sessions.",
+    "Gaming & performance": {
+        "story": "Sustained high-refresh play. Raw performance plus the battery to survive a session.",
         "weights": {"camera": 0.10, "performance": 0.50, "battery": 0.30, "value": 0.10},
         "budget_max": 85000},
-    "Meera — Budget-conscious student": {
-        "story": "19, saving hard. Value-for-money and all-day battery on a tight budget.",
+    "Value / essentials": {
+        "story": "Tight budget, no compromises on the basics: value for money and all-day battery.",
         "weights": {"camera": 0.15, "performance": 0.20, "battery": 0.30, "value": 0.35},
         "budget_max": 20000},
-    "Rahul — Business all-rounder": {
-        "story": "34, professional. Balanced, premium, reliable; strong battery + camera.",
+    "Business / all-rounder": {
+        "story": "Premium and reliable across the board; strong battery and camera, no weak axis.",
         "weights": {"camera": 0.25, "performance": 0.30, "battery": 0.25, "value": 0.20},
         "budget_max": 140000},
 }
@@ -472,11 +486,11 @@ PERSONAS = {
 
 ### B.4 WSM + worked example
 `match_score = camera×w_c + performance×w_p + battery×w_b + value×w_v`
-Worked example (Priya, weights 0.5/0.1/0.2/0.2; a phone scoring camera=9, performance=6, battery=7, value=5):
+Worked example (Photography-first, weights 0.5/0.1/0.2/0.2; a phone scoring camera=9, performance=6, battery=7, value=5):
 `= 9×0.5 + 6×0.1 + 7×0.2 + 5×0.2 = 4.5 + 0.6 + 1.4 + 1.0 = 7.5`  → used in `test_wsm.py`.
 
 > **The weighted sum needs normalized criteria (this also changed the model — Ch.4 slide material).**
-> A criterion's real influence in a weighted sum is **weight × spread**, not weight alone. The four raw scores don't share a spread: `value_score` is min–max scaled and uses the full 0–10, while `camera_score` spans ~3. So value swung the ranking by **2.00** at weight 0.20 while camera swung it by only **1.50** at weight 0.50 — **value outvoted camera at 2.5× less weight**, and Priya (photography) and Meera (budget) got *identical* top-3s. The fix is standard multi-criteria decision analysis: **normalize the decision matrix** — the alternatives actually being compared, i.e. the in-budget pool — before applying weights. `match_scores()` stays a pure dot product, so the `7.5` worked example is unaffected. Raw scores are still what we *display*: "camera 7.4/10" is meaningful to a shopper, a pool-relative `0.0` is not.
+> A criterion's real influence in a weighted sum is **weight × spread**, not weight alone. The four raw scores don't share a spread: `value_score` is min–max scaled and uses the full 0–10, while `camera_score` spans ~3. So value swung the ranking by **2.00** at weight 0.20 while camera swung it by only **1.50** at weight 0.50 — **value outvoted camera at 2.5× less weight**, and Photography-first and Value / essentials got *identical* top-3s. The fix is standard multi-criteria decision analysis: **normalize the decision matrix** — the alternatives actually being compared, i.e. the in-budget pool — before applying weights. `match_scores()` stays a pure dot product, so the `7.5` worked example is unaffected. Raw scores are still what we *display*: "camera 7.4/10" is meaningful to a shopper, a pool-relative `0.0` is not.
 
 ```python
 # src/recommender/wsm.py
@@ -517,11 +531,15 @@ def recommend(df, weights, budget_max=None, form_factor=None, top_n=3):
 
 | Persona | Top-3 |
 |---|---|
-| Priya — photography (≤₹80k) | S26 FE · S24 FE · M15 5G |
-| Arjun — gamer (≤₹85k) | S26 FE · M35 5G · S24 FE |
-| Meera — student (≤₹20k) | M15 5G · F15 5G · M35 5G |
-| Rahul — business (≤₹1.4L) | S26 Ultra · S26+ · S25+ |
-| *free text:* "photography under ₹50k" | A57 5G · A56 5G · A36 5G |
+| Photography-first (≤₹80k) | S24 Ultra · S25+ · S24+ |
+| Gaming & performance (≤₹85k) | S24 Ultra · S25+ · S24+ |
+| Value / essentials (≤₹20k) | M15 5G · F15 5G · M35 5G |
+| Business / all-rounder (≤₹1.4L) | S26 Ultra · S25 Ultra · S24 Ultra |
+| *free text:* "photography under ₹50k" | S24+ · S24 · S24 FE |
+
+*(Regenerated 2026-07-15 after prices were aged to 2026, the score ceilings were fixed, and the 2026 line's real spec sheets landed. Depreciation is what moved these: an S24 Ultra at its real ~₹68k street price is now the best camera an ₹80k photography budget can buy, where the frozen ₹1,47,559 MSRP put it out of reach entirely. Likewise "photography under ₹50k" now returns discounted S-series flagships instead of new A-series — which is what a shopper would actually be told in a shop.)*
+
+> **Photography-first and Gaming & performance now share a top-3.** Both land on S24 Ultra · S25+ · S24+: a two-year-old flagship at half price is simultaneously the best camera and the best raw performance available under ~₹85k, so two different weight vectors agree. This is a real property of the catalog, not the normalization bug from B.4's history — the personas still produce **3 distinct #1s**, and `tests/test_wsm.py::test_personas_produce_distinct_recommendations` guards that. If it ever drops to 1, the WSM is broken again.
 
 ---
 

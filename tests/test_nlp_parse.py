@@ -75,8 +75,60 @@ def test_reason_works_offline_for_every_top_pick():
 
 
 def test_mock_rows_are_disclosed_in_the_reason():
-    """A 2026 pick must never be presented as confirmed fact."""
-    df = pd.read_csv("data/processed/phones.csv")
-    row = df[df["spec_source"] == "mock"].iloc[0]
+    """A projected pick must never be presented as confirmed fact.
+
+    Built from a synthetic row on purpose: the catalog has no projections today (the 2026
+    line shipped and its specs were confirmed), but the disclosure mechanism must keep
+    working for whatever gets projected next — a catalog with nothing to warn about is not
+    evidence that the warning works.
+    """
+    row = pd.Series({"model_name": "Galaxy S27 Ultra", "launch_year": 2027, "price_inr": 149999,
+                     "camera_score": 9.0, "performance_score": 9.0, "battery_score": 8.0,
+                     "value_score": 1.0, "spec_source": "mock"})
     w = {f: 0.25 for f in nlp_parse.FACTORS}
     assert "projected" in explain.reason(row, w)
+
+
+def test_real_rows_are_not_labelled_projected():
+    """The flip side: now that the 2026 line is confirmed, it must NOT carry the warning."""
+    df = pd.read_csv("data/processed/phones.csv")
+    row = df[df["model_name"] == "Galaxy S26 Ultra"].iloc[0]
+    w = {f: 0.25 for f in nlp_parse.FACTORS}
+    assert "projected" not in explain.reason(row, w)
+
+
+# --- negation -------------------------------------------------------------
+# "I dont mind the budget" used to BOOST value to 0.34 — tied with camera — because the
+# keyword "budget" is present and nothing looked to its left. The shopper said the exact
+# opposite of what the parser heard.
+
+def test_dismissed_factor_is_not_boosted():
+    out = nlp_parse.parse_rules("I dont mind the budget, I want the best camera in samsung mobile.")
+    assert "value" not in out["must_haves"]
+    assert out["weights"]["camera"] > out["weights"]["value"]
+
+
+def test_dismissal_does_not_swallow_the_next_clause():
+    """The dismissal governs its own clause only — the camera ask behind the comma stands."""
+    out = nlp_parse.parse_rules("I dont mind the budget, I want the best camera in samsung mobile.")
+    assert out["must_haves"] == ["camera"]
+
+
+def test_money_no_object_suppresses_value_only():
+    out = nlp_parse.parse_rules("best camera, money is no object")
+    assert out["must_haves"] == ["camera"]
+
+
+def test_and_continues_a_dismissal():
+    out = nlp_parse.parse_rules("I dont care about camera and battery, just performance")
+    assert out["must_haves"] == ["performance"]
+
+
+def test_but_ends_a_dismissal():
+    out = nlp_parse.parse_rules("I dont mind the price but camera matters")
+    assert out["must_haves"] == ["camera"]
+
+
+def test_plain_budget_ask_still_boosts_value():
+    """Negation handling must not break the ordinary case."""
+    assert "value" in nlp_parse.parse_rules("budget phone under 15k")["must_haves"]

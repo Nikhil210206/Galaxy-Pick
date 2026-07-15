@@ -21,17 +21,18 @@ Galaxy F15 5G,F,2024,12499,6,128,Dimensity 6100+,50,6000,6.5,90,25,budget,real
 Galaxy F55 5G,F,2024,26999,8,128,Snapdragon 7 Gen1,50,5000,6.7,120,45,gaming,real
 Galaxy A16 5G,A,2025,16999,6,128,Dimensity 6300,50,5000,6.7,90,25,budget,real
 Galaxy A26 5G,A,2025,21999,8,128,Exynos 1380,50,5000,6.7,120,25,budget,real
-Galaxy A36 5G,A,2025,26999,8,128,Snapdragon 6 Gen3,50,5000,6.7,120,45,business,real
+Galaxy A36 5G,A,2025,26999,8,128,Snapdragon 6 Gen 3,50,5000,6.7,120,45,business,real
 Galaxy A56 5G,A,2025,35999,8,128,Exynos 1580,50,5000,6.7,120,45,business,real
 Galaxy M16 5G,M,2025,13999,6,128,Dimensity 6300,50,6000,6.7,90,25,budget,real
 Galaxy M56 5G,M,2025,27999,8,128,Exynos 1580,50,5000,6.7,120,45,gaming,real
 Galaxy F16 5G,F,2025,13499,6,128,Dimensity 6300,50,6000,6.7,90,25,budget,real
-Galaxy S26,S,2026,89999,12,256,Snapdragon 8 Elite Gen2,50,4300,6.3,120,45,business,mock
-Galaxy S26+,S,2026,109999,12,256,Snapdragon 8 Elite Gen2,50,4900,6.7,120,45,business,mock
-Galaxy S26 Ultra,S-Ultra,2026,139999,12,512,Snapdragon 8 Elite Gen2,200,5200,6.9,120,65,photography,mock
-Galaxy S26 FE,S-FE,2026,62999,8,128,Exynos 2500,50,4900,6.7,120,45,gaming,mock
-Galaxy Z Flip8,Z-Flip,2026,119999,12,256,Snapdragon 8 Elite Gen2,50,4400,6.9,120,25,business,mock
-Galaxy Z Fold8,Z-Fold,2026,184999,12,256,Snapdragon 8 Elite Gen2,200,4800,8.2,120,25,business,mock
-Galaxy A57 5G,A,2026,37999,8,256,Exynos 1680,50,5000,6.7,120,45,business,mock
-Galaxy A17 5G,A,2026,17999,6,128,Dimensity 6400,50,5000,6.7,90,25,budget,mock
-Galaxy M57 5G,M,2026,28999,8,128,Exynos 1580,50,5000,6.7,120,45,gaming,mock
+Galaxy S26,S,2026,87999,12,256,Exynos 2600,50,4300,6.3,120,25,business,real
+Galaxy S26+,S,2026,119999,12,256,Exynos 2600,50,4900,6.7,120,45,business,real
+Galaxy S26 Ultra,S-Ultra,2026,139999,12,256,Snapdragon 8 Elite Gen 5,200,5000,6.9,120,60,photography,real
+Galaxy A57 5G,A,2026,46990,8,128,Exynos 1680,50,5000,6.7,120,45,business,real
+Galaxy A17 5G,A,2026,20990,4,128,Exynos 1330,50,5000,6.7,90,25,budget,real
+Galaxy F06,F,2026,9999,4,64,Dimensity 6300,50,5000,6.7,90,25,budget,real
+Galaxy F17,F,2026,13499,4,128,Exynos 1330,50,5000,6.7,90,25,budget,real
+Galaxy M16,M,2026,14999,4,128,Dimensity 6300,50,5000,6.7,90,25,budget,real
+Galaxy M47 5G,M,2026,23999,6,128,Snapdragon 6 Gen 3,50,6000,6.7,120,45,gaming,real
+Galaxy A27 5G,A,2026,28999,6,128,Snapdragon 6 Gen 3,50,5000,6.7,120,25,business,real
