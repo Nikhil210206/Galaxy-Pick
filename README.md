@@ -47,7 +47,7 @@ curated_seed.csv  →  scoring.py  →  phones.csv  →  wsm.recommend()  →  t
 | `scoring.py` | Raw specs → four 0–10 scores |
 | `personas.py` | The four personas and their weight vectors |
 | `wsm.py` | Budget + hard spec filters → normalize → weighted sum → rank → top-N |
-| `nlp_parse.py` | Free text → `{weights, budget_max, form_factor, must_haves}` |
+| `nlp_parse.py` | Free text → `{weights, budget_min, budget_max, form_factor, must_haves}` — "under 50k" is a ceiling, "around 20k" is a band |
 | `explain.py` | The one-line "why" for each pick |
 | `cards.py` | Offline placeholder art (no external images needed) |
 | `app/theme.py` | Design tokens + CSS, ported from the Stitch project's `DESIGN.md` |

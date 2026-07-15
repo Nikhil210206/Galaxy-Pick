@@ -34,20 +34,31 @@ pytest -q                                         # tests
 - `data.py` — load & validate `phones.csv`.
 - `scoring.py` — raw specs → four 0–10 scores (camera / performance / battery / value), plus the build-time price depreciation. Formulas in `PLAN.md` Appendix B. **`camera_score` ranks on series optics tier, not megapixels** — MP takes only two values across the catalog, so it can't discriminate. **Keep the tier tables sized so tier + bonuses reach exactly 10.0 and never clamp**: when they overflowed, `_clamp` flattened four chipset generations to a single 10.0 and a 2024 S24 Ultra tied a 2026 S26 Ultra on both camera and performance. `tests/test_scoring.py` guards the headroom.
 - `personas.py` — 4 personas, each with a weight vector that sums to 1.0.
-- `wsm.py` — budget filter → **normalize the pool** → weighted sum → rank → top-N. The normalize step is load-bearing: influence in a weighted sum is weight × spread, so unscaled criteria silently re-weight the model (see `PLAN.md` B.4).
-- `nlp_parse.py` — free-text → `{weights, budget_max, form_factor, must_haves}`; Gemini if enabled else rule-based; **always validated** before use.
+- `wsm.py` — budget + hard spec filters → **normalize the pool** → weighted sum → rank → top-N, ties broken by newer-then-cheaper. The normalize step is load-bearing: influence in a weighted sum is weight × spread, so unscaled criteria silently re-weight the model (see `PLAN.md` B.4). Hard filters live in the keyword-only `filters` dict (`FILTERS`); an unsatisfiable one returns an **empty** frame and `binding_filters()` names what to relax — it must never fall back to the whole catalog. **`budget_max` is only a ceiling**: nothing in a weighted sum pulls toward it, so `min_price_inr` is the other half of a budget (see below).
+- `nlp_parse.py` — free-text → `{weights, budget_min, budget_max, form_factor, must_haves}`; Gemini if enabled else rule-based; **always validated** before use. A *ceiling* ("under 50k") sets `budget_max`; a *target* ("around 20k") is a **band**. Dismissals ("I don't mind the budget") suppress a factor instead of boosting it.
 - `explain.py` — template "why" string (+ optional Gemini polish).
 
 ## Quick reference
 `match_score = camera×w_c + performance×w_p + battery×w_b + value×w_v` (scores 0–10, weights sum to 1 → match 0–10). Full scoring formulas and the persona weight table are in **`PLAN.md` Appendix B**.
 
 ## Definition of done
-- `phones.csv`: ~36 rows, `launch_year ∈ {2024,2025,2026}`, all 2026 rows `spec_source=mock`, every score ∈ [0,10], no nulls in required columns.
+- `phones.csv`: ~37 rows, `launch_year ∈ {2024,2025,2026}`, every score ∈ [0,10], no nulls in required columns, `price_inr ≤ launch_price_inr`, and **every chipset present in `scoring.CHIPSET_TIER`** (an unknown one silently scores the *lowest* tier — `build_dataset.py` asserts this).
 - Notebook runs top-to-bottom (Restart & Run All) and contains 3 EDA findings + the WSM worked example (`7.5`).
 - App: each persona → correct top-3, **matching the notebook** (expected picks are tabled in `PLAN.md` B.4); free-text "photography under ₹50k" → camera-weighted, in-budget results.
+- **The two entry paths stay different journeys:** a persona goes personas → analyzing → results with *no form*; "Build My Own Preferences" is the only route to the sliders. `tests/test_app_flow.py` guards it.
 - **Personas must disagree.** If every persona returns the same phone, the WSM is broken — that's the exact failure the normalize step fixes, and `tests/test_wsm.py` guards it.
 - **Fallback drill:** with no key and no network, NL parsing + explanations still work.
 - `pytest` green.
+
+## Working on the app (`app/`) — traps that cost real time
+The UI is a port of the Stitch design (project `18177589114052184530`); tokens live in `app/theme.py`. Each of these shipped a page that *looked* plausible and was wrong, and none was caught by `pytest`:
+1. **`st.markdown("<div>")` does not wrap the widgets after it.** Streamlit closes the div immediately, so a "card" opened that way renders **empty** with its content spilling outside. Use `st.container(border=True, key=...)` and put widgets inside the `with`.
+2. **Widget `key`s are a trap here — the sliders deliberately have none.** A keyed widget ignores `value=` once it exists (the parse can't move it), *and* Streamlit purges a keyed widget's state on any run that doesn't render it while keeping the dead key in `_old_state`, so `setdefault` skips it and the widget falls back to `min_value` (weights silently read 0.00). Keep the value in a **non-widget** key (`weights`, `budget_max`, `filters`) and pass `value=` to a **keyless** widget.
+3. **Streamlit's own CSS is `!important`.** At equal specificity theirs wins, so prefix overrides with `.stApp` or they silently lose.
+4. **`theme.CSS` is an f-string** — a brace in a CSS comment raises at import and kills the app. `tests/test_theme.py` guards it.
+5. **`zip(st.columns(2), FOUR_THINGS)` silently drops two.** Loop in chunks.
+6. **Port from each screen's HTML, not DESIGN.md's prose** — they disagree (prose says `#F6F7FB`, screens ship `#fbf8ff`). Fetch via the `stitch` MCP: `list_screens` → `htmlCode.downloadUrl`.
+7. **Verify UI in a real browser** (Playwright, dev-only, not in `requirements.txt`). `AppTest` proves code runs, not that layout is right — and it raises `KeyError: '$$ID-…-None'` on keyless multiselects when clicking across screens, which the browser handles fine.
 
 ## Out of scope (do not add)
 Fine-tuning · RAG · embeddings · vector DB · backend/API server · database · authentication · caching · Grok · paid Hugging Face · web scraping at runtime.
