@@ -1,0 +1,321 @@
+<meta charset="utf-8">
+<title>Galaxy-Pick — PJ1 Execution Plan</title>
+<style>
+  :root{
+    --blue:#1428A0; --blue-d:#0C1E7F; --ink:#1a1a1a; --muted:#5b6472;
+    --line:#e2e6ee; --bg:#f5f6f8; --cut:#c0392b; --keep:#0f9d58;
+  }
+  @page{ size:A4; margin:16mm 15mm 18mm; }
+  *{ box-sizing:border-box; }
+  body{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+        color:var(--ink); font-size:10.5pt; line-height:1.5; margin:0; }
+  h1,h2,h3,h4{ line-height:1.2; margin:0 0 .35em; }
+  h1{ font-size:26pt; color:var(--blue); letter-spacing:-.5px; }
+  h2{ font-size:15pt; color:var(--blue); border-bottom:2px solid var(--line);
+      padding-bottom:5px; margin-top:26px; }
+  h3{ font-size:11.5pt; color:var(--blue-d); margin-top:16px; }
+  p{ margin:.4em 0; } ul{ margin:.3em 0 .6em; padding-left:18px; } li{ margin:.18em 0; }
+  a{ color:var(--blue); }
+  code,.mono{ font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:9pt;
+        background:var(--bg); padding:1px 5px; border-radius:4px; }
+  table{ width:100%; border-collapse:collapse; margin:.6em 0; font-size:9pt; }
+  th,td{ border:1px solid var(--line); padding:5px 8px; text-align:left; vertical-align:top; }
+  th{ background:var(--blue); color:#fff; font-weight:600; }
+  tbody tr:nth-child(even){ background:var(--bg); }
+  .page-break{ page-break-before:always; }
+  tr,.card,.callout,.diagram{ break-inside:avoid; }
+  .lead{ font-size:11.5pt; color:var(--muted); margin:2px 0 0; }
+  .meta{ margin:14px 0 0; color:var(--muted); font-size:9.5pt; }
+  .rule{ height:4px; background:linear-gradient(90deg,var(--blue),#5b78ff); border-radius:3px; margin:14px 0 6px; }
+  .callout{ background:var(--bg); border-left:4px solid var(--blue); border-radius:6px;
+        padding:10px 14px; margin:12px 0; }
+  .callout.cut{ border-left-color:var(--cut); }
+  .callout.keep{ border-left-color:var(--keep); }
+  .grid2{ display:flex; gap:14px; } .grid2>div{ flex:1; }
+  .chips{ margin:6px 0; } .chip{ display:inline-block; background:#eaeefc; color:var(--blue-d);
+        border:1px solid #d4dcff; border-radius:20px; padding:2px 10px; font-size:8.5pt; margin:2px 3px 2px 0; }
+  .chip.no{ background:#fdecea; color:var(--cut); border-color:#f6c9c2; }
+  .tag{ font-weight:700; } .tag.keep{ color:var(--keep); } .tag.cut{ color:var(--cut); }
+  .diagram{ background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:12px; margin:10px 0; }
+  .row{ display:flex; gap:10px; align-items:stretch; justify-content:center; flex-wrap:wrap; }
+  .box{ background:#fff; border:1.5px solid var(--blue); border-radius:8px; padding:8px 10px;
+        font-size:8.5pt; text-align:center; min-width:120px; }
+  .box .t{ font-weight:700; color:var(--blue-d); display:block; }
+  .box.mut{ border-color:var(--line); } .arrow{ align-self:center; color:var(--blue); font-weight:700; }
+  .small{ font-size:8.5pt; color:var(--muted); }
+  .footer{ position:fixed; bottom:6mm; left:0; right:0; text-align:center; color:var(--muted); font-size:8pt; }
+  .kpi{ display:flex; gap:10px; margin:10px 0; }
+  .kpi>div{ flex:1; background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .kpi .n{ font-size:16pt; font-weight:700; color:var(--blue); } .kpi .l{ font-size:8.5pt; color:var(--muted); }
+</style>
+
+<h1>Galaxy-Pick</h1>
+<p class="lead">PJ1 · Samsung Galaxy Phone Recommendation System — Team Execution Plan</p>
+<div class="rule"></div>
+<p class="meta"><b>Module:</b> Samsung GenAI Capstone (PJ1) &nbsp;•&nbsp; <b>Team:</b> Member 1–4 &nbsp;•&nbsp; <b>Build window:</b> 3–5 days &nbsp;•&nbsp; <b>Date:</b> 14 Jul 2026</p>
+
+<div class="callout">
+  <b>The decision, in one line.</b> Build a <b>deterministic</b> Galaxy phone recommender — a curated 2024–2026 dataset → four transparent <b>0–10 scores</b> → a <b>Weighted Sum Model</b> → an explained <b>top-3</b> — delivered as a <b>Jupyter notebook</b> (the graded core) plus a <b>Samsung-styled Streamlit app</b>, with an <b>optional, free-tier Gemini</b> layer for natural-language input that <b>always falls back</b> to an offline rule-based parser. It runs with no API key and no network.
+</div>
+
+<h2 style="border:none;margin-top:18px">Executive summary <span class="small">(one page — read this first)</span></h2>
+
+<div class="grid2">
+  <div>
+    <h3>What we're building</h3>
+    <ul>
+      <li><b>Notebook (graded):</b> EDA, the four scores with documented logic, 4 personas, the WSM + a worked example.</li>
+      <li><b>Streamlit app (demo):</b> pick a persona <i>or</i> type a need → ranked top-3 cards with a score breakdown and a one-line "why."</li>
+      <li><b>One AI feature:</b> natural-language persona parsing (Gemini optional; deterministic fallback always on).</li>
+      <li><b>Responsible-AI panel:</b> shows real vs. mock data and calls scores "heuristic."</li>
+    </ul>
+  </div>
+  <div>
+    <h3>Why this wins</h3>
+    <p>PJ1 is graded on a small, specific rubric (personas, 0–10 scores, WSM, EDA findings, a UI, a presentation) and on applying <b>Ch.2 prompt engineering</b>, <b>Ch.3 model selection</b>, and <b>Ch.4 Responsible AI</b>. The way to stand out is to <b>nail the rubric flawlessly</b> and add <b>one</b> on-theme differentiator — not to build production infrastructure.</p>
+  </div>
+</div>
+
+<div class="callout cut">
+  <b class="tag cut">Deliberately cut</b> (they score nothing here and signal "misread the assignment"):
+  <span class="chip no">Fine-tuning</span><span class="chip no">RAG</span><span class="chip no">Embeddings</span><span class="chip no">Vector DB</span><span class="chip no">Backend / DB / Auth</span><span class="chip no">Grok (paid)</span><span class="chip no">Hugging Face</span><span class="chip no">Runtime scraping</span>
+</div>
+
+<div class="kpi">
+  <div><div class="n">~36</div><div class="l">curated models (2024–2026)</div></div>
+  <div><div class="n">4</div><div class="l">scores &amp; personas</div></div>
+  <div><div class="n">₹0</div><div class="l">cost — 100% free/OSS</div></div>
+  <div><div class="n">0</div><div class="l">API keys required to run</div></div>
+</div>
+
+<div class="grid2">
+  <div>
+    <h3>Roadmap (5 phases)</h3>
+    <table>
+      <tr><th>Phase</th><th>Focus</th><th>Effort</th></tr>
+      <tr><td>0</td><td>Setup + skeleton + env</td><td>0.5d</td></tr>
+      <tr><td>1</td><td>Curated dataset + scores</td><td>1d</td></tr>
+      <tr><td>2</td><td><b>Notebook — graded core</b></td><td>1d</td></tr>
+      <tr><td>3</td><td>Streamlit app</td><td>1d</td></tr>
+      <tr><td>4</td><td>NL parsing + Responsible AI</td><td>0.5–1d</td></tr>
+      <tr><td>5</td><td>Tests + polish + slides</td><td>0.5–1d</td></tr>
+    </table>
+  </div>
+  <div>
+    <h3>Team split</h3>
+    <table>
+      <tr><th>Seat</th><th>Owns</th></tr>
+      <tr><td>Member 1 — Data</td><td>Dataset, cleaning, provenance</td></tr>
+      <tr><td>Member 2 — Engine</td><td>Scoring, WSM, notebook, tests</td></tr>
+      <tr><td>Member 3 — UI</td><td>Streamlit app, Samsung theme</td></tr>
+      <tr><td>Member 4 — AI/Present</td><td>NL parse, explanations, slides</td></tr>
+    </table>
+    <p class="small">Stack: Python 3.11 · pandas · Jupyter · Streamlit · matplotlib · pytest · (optional) Gemini.</p>
+  </div>
+</div>
+
+<!-- ================= FULL DETAIL ================= -->
+<div class="page-break"></div>
+<h2>1 · Project understanding</h2>
+<ul>
+  <li><b>Objective:</b> a shopping-assistant prototype that recommends the right Galaxy phone for a shopper and <b>explains why</b>, ranked.</li>
+  <li><b>Users:</b> Samsung Mobile e-commerce shoppers, modelled as 3–4 personas; evaluated by the instructor / Samsung R&D engineers.</li>
+  <li><b>Graded deliverables:</b> personas with weights summing to 1.0 · a cleaned mock/curated dataset · 3 EDA findings · four 0–10 scores with documented logic · the WSM + one worked example · a working UI screenshot · a short presentation.</li>
+  <li><b>Evaluation:</b> Mini Project 80% + Presentation 20% — compliance with the named steps and visible use of Ch.1–4, <i>not</i> infrastructure.</li>
+  <li><b>Hidden traps:</b> scoring can look arbitrary (make it transparent); GenAI data has realism traps; Ch.4 wants you to <i>show</i> where AI was guarded; over-scoping burns time and signals misunderstanding.</li>
+</ul>
+
+<h2>2 · Gap analysis</h2>
+<table>
+  <tr><th>Have</th><th>Missing</th><th>Biggest risk</th></tr>
+  <tr><td>PJ1 chosen; empty repo; real S/Z slice of data</td><td>Clean canonical dataset (1 row/model)</td><td>Over-engineering vs. the rubric</td></tr>
+  <tr><td>Two Kaggle scrapes (2022–23 — reference only)</td><td>The four 0–10 scores + WSM</td><td>Live-API failure at demo → neutralised by fallback</td></tr>
+  <tr><td>The brief's WSM spec</td><td>Personas, Streamlit UI, notebook, slides</td><td>Polishing UI before the core works</td></tr>
+</table>
+<p><b>De-risking rule:</b> finish the graded <b>notebook</b> by end of Phase 2 — after that you're pass-safe and everything else is upside.</p>
+
+<h2>3 · Dataset strategy</h2>
+<div class="grid2">
+  <div>
+    <p><b>Verdict on the source data:</b> the S-/Z-series rows in the team CSV are real and good — keep them. The A/M/F rows (A12, A14…) are <b>fabricated arithmetic padding</b> with wrong labels — <b>drop them</b>. The Kaggle scrapes are 2022–23, so with a 2024–2026 catalog they no longer match — demote to a <b>calibration reference</b> only.</p>
+    <p><b>Key insight — more phones does <span class="tag cut">not</span> help.</b> A WSM has no training step, so extra rows can't raise accuracy — they only add noise. <b>Curate, don't accumulate.</b></p>
+  </div>
+  <div>
+    <p><b>Recommended architecture</b> — one row per model:</p>
+    <ul>
+      <li><b>Range:</b> 2024–2026. 2024–25 real; every <b>2026 row is <span class="mono">spec_source=mock</span></b> (a projection), flagged honestly.</li>
+      <li><b>Size:</b> ~36 models (27 real / 9 mock) — spans budget → flagship → foldable.</li>
+      <li><b>Images:</b> free, offline <b>placeholder cards</b> drawn in code (zero copyright risk).</li>
+      <li><b>Columns:</b> identity · raw specs · four scores · <span class="mono">spec_source</span>.</li>
+    </ul>
+  </div>
+</div>
+
+<h3>The curated dataset (36 models)</h3>
+<table>
+  <tr><th>Model</th><th>Series</th><th>Yr</th><th>₹ Price</th><th>RAM</th><th>Chipset</th><th>Cam</th><th>mAh</th><th>Seg</th><th>Src</th></tr>
+  <tr><td>Galaxy S24</td><td>S</td><td>2024</td><td>87,559</td><td>8</td><td>Exynos 2400</td><td>50</td><td>4000</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy S24+</td><td>S</td><td>2024</td><td>1,07,559</td><td>8</td><td>Exynos 2400</td><td>50</td><td>4900</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy S24 Ultra</td><td>S-Ultra</td><td>2024</td><td>1,47,559</td><td>12</td><td>SD 8 Gen3</td><td>200</td><td>5000</td><td>photography</td><td>real</td></tr>
+  <tr><td>Galaxy S24 FE</td><td>S-FE</td><td>2024</td><td>67,559</td><td>8</td><td>Exynos 2400e</td><td>50</td><td>4700</td><td>gaming</td><td>real</td></tr>
+  <tr><td>Galaxy Z Flip6</td><td>Z-Flip</td><td>2024</td><td>1,17,559</td><td>8</td><td>SD 8 Gen3</td><td>50</td><td>4000</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy Z Fold6</td><td>Z-Fold</td><td>2024</td><td>1,72,559</td><td>8</td><td>SD 8 Gen3</td><td>50</td><td>4400</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy S25</td><td>S</td><td>2025</td><td>88,559</td><td>8</td><td>SD 8 Elite</td><td>50</td><td>4000</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy S25+</td><td>S</td><td>2025</td><td>1,07,559</td><td>8</td><td>SD 8 Elite</td><td>50</td><td>4900</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy S25 Ultra</td><td>S-Ultra</td><td>2025</td><td>1,47,559</td><td>12</td><td>SD 8 Elite</td><td>200</td><td>5000</td><td>photography</td><td>real</td></tr>
+  <tr><td>Galaxy Z Flip7</td><td>Z-Flip</td><td>2025</td><td>1,22,559</td><td>8</td><td>SD 8 Elite</td><td>50</td><td>4300</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy Z Fold7</td><td>Z-Fold</td><td>2025</td><td>1,82,559</td><td>8</td><td>SD 8 Elite</td><td>200</td><td>4600</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy A15 5G</td><td>A</td><td>2024</td><td>14,999</td><td>6</td><td>Dimensity 6100+</td><td>50</td><td>5000</td><td>budget</td><td>real</td></tr>
+  <tr><td>Galaxy A25 5G</td><td>A</td><td>2024</td><td>19,999</td><td>8</td><td>Exynos 1280</td><td>50</td><td>5000</td><td>budget</td><td>real</td></tr>
+  <tr><td>Galaxy A35 5G</td><td>A</td><td>2024</td><td>26,999</td><td>8</td><td>Exynos 1380</td><td>50</td><td>5000</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy A55 5G</td><td>A</td><td>2024</td><td>35,999</td><td>8</td><td>Exynos 1480</td><td>50</td><td>5000</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy M15 5G</td><td>M</td><td>2024</td><td>12,999</td><td>6</td><td>Dimensity 6100+</td><td>50</td><td>6000</td><td>budget</td><td>real</td></tr>
+  <tr><td>Galaxy M35 5G</td><td>M</td><td>2024</td><td>18,999</td><td>8</td><td>Exynos 1380</td><td>50</td><td>6000</td><td>budget</td><td>real</td></tr>
+  <tr><td>Galaxy M55 5G</td><td>M</td><td>2024</td><td>26,999</td><td>8</td><td>SD 7 Gen1</td><td>50</td><td>5000</td><td>gaming</td><td>real</td></tr>
+  <tr><td>Galaxy F15 5G</td><td>F</td><td>2024</td><td>12,499</td><td>6</td><td>Dimensity 6100+</td><td>50</td><td>6000</td><td>budget</td><td>real</td></tr>
+  <tr><td>Galaxy F55 5G</td><td>F</td><td>2024</td><td>26,999</td><td>8</td><td>SD 7 Gen1</td><td>50</td><td>5000</td><td>gaming</td><td>real</td></tr>
+  <tr><td>Galaxy A16 5G</td><td>A</td><td>2025</td><td>16,999</td><td>6</td><td>Dimensity 6300</td><td>50</td><td>5000</td><td>budget</td><td>real</td></tr>
+  <tr><td>Galaxy A26 5G</td><td>A</td><td>2025</td><td>21,999</td><td>8</td><td>Exynos 1380</td><td>50</td><td>5000</td><td>budget</td><td>real</td></tr>
+  <tr><td>Galaxy A36 5G</td><td>A</td><td>2025</td><td>26,999</td><td>8</td><td>SD 6 Gen3</td><td>50</td><td>5000</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy A56 5G</td><td>A</td><td>2025</td><td>35,999</td><td>8</td><td>Exynos 1580</td><td>50</td><td>5000</td><td>business</td><td>real</td></tr>
+  <tr><td>Galaxy M16 5G</td><td>M</td><td>2025</td><td>13,999</td><td>6</td><td>Dimensity 6300</td><td>50</td><td>6000</td><td>budget</td><td>real</td></tr>
+  <tr><td>Galaxy M56 5G</td><td>M</td><td>2025</td><td>27,999</td><td>8</td><td>Exynos 1580</td><td>50</td><td>5000</td><td>gaming</td><td>real</td></tr>
+  <tr><td>Galaxy F16 5G</td><td>F</td><td>2025</td><td>13,499</td><td>6</td><td>Dimensity 6300</td><td>50</td><td>6000</td><td>budget</td><td>real</td></tr>
+  <tr><td>Galaxy S26</td><td>S</td><td>2026</td><td>89,999</td><td>12</td><td>SD 8 Elite Gen2</td><td>50</td><td>4300</td><td>business</td><td><b>mock</b></td></tr>
+  <tr><td>Galaxy S26+</td><td>S</td><td>2026</td><td>1,09,999</td><td>12</td><td>SD 8 Elite Gen2</td><td>50</td><td>4900</td><td>business</td><td><b>mock</b></td></tr>
+  <tr><td>Galaxy S26 Ultra</td><td>S-Ultra</td><td>2026</td><td>1,39,999</td><td>12</td><td>SD 8 Elite Gen2</td><td>200</td><td>5200</td><td>photography</td><td><b>mock</b></td></tr>
+  <tr><td>Galaxy S26 FE</td><td>S-FE</td><td>2026</td><td>62,999</td><td>8</td><td>Exynos 2500</td><td>50</td><td>4900</td><td>gaming</td><td><b>mock</b></td></tr>
+  <tr><td>Galaxy Z Flip8</td><td>Z-Flip</td><td>2026</td><td>1,19,999</td><td>12</td><td>SD 8 Elite Gen2</td><td>50</td><td>4400</td><td>business</td><td><b>mock</b></td></tr>
+  <tr><td>Galaxy Z Fold8</td><td>Z-Fold</td><td>2026</td><td>1,84,999</td><td>12</td><td>SD 8 Elite Gen2</td><td>200</td><td>4800</td><td>business</td><td><b>mock</b></td></tr>
+  <tr><td>Galaxy A57 5G</td><td>A</td><td>2026</td><td>37,999</td><td>8</td><td>Exynos 1680</td><td>50</td><td>5000</td><td>business</td><td><b>mock</b></td></tr>
+  <tr><td>Galaxy A17 5G</td><td>A</td><td>2026</td><td>17,999</td><td>6</td><td>Dimensity 6400</td><td>50</td><td>5000</td><td>budget</td><td><b>mock</b></td></tr>
+  <tr><td>Galaxy M57 5G</td><td>M</td><td>2026</td><td>28,999</td><td>8</td><td>Exynos 1580</td><td>50</td><td>5000</td><td>gaming</td><td><b>mock</b></td></tr>
+</table>
+<p class="small">Full CSV + exact scoring formulas live in <span class="mono">PLAN.md</span> (Appendix A &amp; B). Prices are representative base MRP in INR.</p>
+
+<div class="page-break"></div>
+<h2>4 · AI / ML strategy</h2>
+<table>
+  <tr><th>Question</th><th>Decision</th><th>Why</th></tr>
+  <tr><td>Core logic</td><td class="tag keep">Weighted Sum Model</td><td>Required by brief; fully explainable — the property that wins.</td></tr>
+  <tr><td>Fine-tuning</td><td class="tag cut">No</td><td>No training data or step; signals misread assignment.</td></tr>
+  <tr><td>RAG / Vector DB</td><td class="tag cut">No</td><td>36 rows fit in a DataFrame; nothing to retrieve.</td></tr>
+  <tr><td>Embeddings</td><td class="tag cut">No</td><td>WSM is more explainable than a similarity black box.</td></tr>
+  <tr><td>LLM API</td><td class="tag keep">Gemini — 1 job, optional</td><td>Parse free-text → weights (Ch.2/3/4). Free tier; always has a fallback.</td></tr>
+  <tr><td>Grok / HF</td><td class="tag cut">No</td><td>Paid / off-theme / extra keys, zero added value.</td></tr>
+</table>
+<div class="callout keep"><b>The one standout AI feature.</b> A free-text box ("a phone for photography under ₹50k") → Gemini returns JSON weights <i>if a key exists</i>, else a deterministic keyword parser does the same. Output is validated before use. Showcases Ch.2–4 <b>and</b> guarantees the demo can't break.</div>
+
+<h2>5 · System architecture (right-sized)</h2>
+<div class="diagram">
+  <div class="row">
+    <div class="box"><span class="t">Jupyter Notebook</span><span class="small">graded core: EDA, scores, WSM</span></div>
+    <div class="box"><span class="t">Streamlit App</span><span class="small">demo UI: persona / free-text → top-3</span></div>
+  </div>
+  <div class="row" style="margin:8px 0"><span class="arrow">▼ &nbsp; both import &nbsp; ▼</span></div>
+  <div class="row">
+    <div class="box" style="min-width:420px"><span class="t">src/recommender/ — single source of truth</span>
+      <span class="small">data · scoring · personas · wsm · nlp_parse · explain · config</span></div>
+  </div>
+  <div class="row" style="margin:8px 0"><span class="arrow">▼</span></div>
+  <div class="row"><div class="box mut"><span class="t">data/processed/phones.csv</span><span class="small">flat file — no database</span></div></div>
+</div>
+<p><b>No backend, no DB, no auth, no cache.</b> Streamlit calls in-process Python (microseconds). Gemini is the only network call — wrapped in try/except with a fallback. Deploy = local <span class="mono">streamlit run</span>; optional free Streamlit Community Cloud.</p>
+
+<h2>6 · Feature versions (A / B / C)</h2>
+<table>
+  <tr><th>Version</th><th>Scope</th><th>Wow</th></tr>
+  <tr><td><b>A · Minimal</b> (~1d)</td><td>15 phones, scores, WSM, 4 personas, ipywidgets dropdown. Passes 100% of the rubric.</td><td>—</td></tr>
+  <tr><td><b>B · Competitive ⭐</b> (3–5d)</td><td>~36 curated models, Streamlit UI, NL persona parsing + fallback, explainable breakdown, Responsible-AI panel.</td><td>Type in plain English → explained ranked result; works offline.</td></tr>
+  <tr><td><b>C · Award-ready</b> (B + extras)</td><td>Live weight sliders, contrastive "why not X", close-call flag, side-by-side compare.</td><td>Tune priorities live &amp; watch the ranking move.</td></tr>
+</table>
+<p><b>Plan of record:</b> build <b>B</b>; pull the weight sliders + close-call flag from C in only if Phase 5 is green.</p>
+
+<h2>7 · UI / UX strategy</h2>
+<ul>
+  <li><b>Layout:</b> sidebar (persona dropdown + free-text + budget slider) → main: top-3 cards → ranked table → score-breakdown bar.</li>
+  <li><b>Samsung language:</b> Samsung Blue <span class="mono">#1428A0</span>, One-UI rounded cards, generous whitespace, clean sans type.</li>
+  <li><b>Accessibility:</b> strong contrast, alt text, never color-only meaning (always show the number), keyboard-navigable.</li>
+  <li><b>On Stitch:</b> fine as a mockup aid, but don't adopt a full React stack — it abandons the required Jupyter environment. Streamlit gives better polish-per-hour.</li>
+</ul>
+
+<div class="page-break"></div>
+<h2>8 · Development roadmap</h2>
+<table>
+  <tr><th>Phase</th><th>Objective</th><th>Key files</th><th>Done when</th></tr>
+  <tr><td>0 · Setup</td><td>Env + skeleton</td><td>environment.yml, folder tree</td><td>conda env builds; streamlit runs</td></tr>
+  <tr><td>1 · Data</td><td>Canonical dataset</td><td>build_dataset.py, phones.csv</td><td>~36 rows, all asserts pass</td></tr>
+  <tr><td>2 · Notebook</td><td><b>Graded core</b></td><td>pj1_analysis.ipynb</td><td>Runs top-to-bottom; example = 7.5 → <b>pass-safe</b></td></tr>
+  <tr><td>3 · App</td><td>Streamlit UI</td><td>src/recommender/*, streamlit_app.py</td><td>Persona → explained top-3 in browser</td></tr>
+  <tr><td>4 · AI + RAI</td><td>NL parse + guardrails</td><td>nlp_parse.py, explain.py</td><td>Works <b>with and without</b> a key</td></tr>
+  <tr><td>5 · Polish</td><td>Tests, theme, slides</td><td>tests/, presentation/</td><td>pytest green; deck rehearsed</td></tr>
+</table>
+
+<h3>Team split — day by day</h3>
+<table>
+  <tr><th>Day</th><th>Member 1 · Data</th><th>Member 2 · Engine</th><th>Member 3 · UI</th><th>Member 4 · AI/Present</th></tr>
+  <tr><td>1 (P0–1)</td><td>Drive dataset</td><td colspan="3">All hands verify specs · <b>freeze function signatures</b></td></tr>
+  <tr><td>2 (P2)</td><td>EDA + provenance</td><td><b>Notebook core → pass-safe</b></td><td>App skeleton + theme</td><td>Persona copy + fallback parser + slide outline</td></tr>
+  <tr><td>3 (P3–4)</td><td>Edge cases + screenshots</td><td>Wire src/ + tests</td><td>Finish app</td><td>NL parse + explain + RAI panel</td></tr>
+  <tr><td>4 (P5)</td><td colspan="2">Integrate + tests; close-call flag (M2)</td><td>Weight sliders (stretch)</td><td>Deck + demo script</td></tr>
+  <tr><td>5</td><td colspan="4">Rehearse · fallback drill · final screenshots · finalize deck</td></tr>
+</table>
+
+<h2>9 · Project folder structure</h2>
+<pre class="mono" style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;font-size:8.3pt;white-space:pre;overflow:auto">galaxy-pick/
+├── CLAUDE.md · PLAN.md · README.md
+├── environment.yml · requirements.txt · .env.example
+├── .streamlit/config.toml            # Samsung theme
+├── data/{raw, processed/phones.csv}
+├── scripts/build_dataset.py          # raw → scored CSV
+├── notebooks/pj1_analysis.ipynb      # GRADED CORE
+├── src/recommender/                  # single source of truth
+│   ├── config · data · scoring · personas
+│   ├── wsm · nlp_parse · explain · cards
+├── app/streamlit_app.py              # demo UI
+├── assets/images/                    # empty → code draws placeholder cards
+├── tests/{test_scoring, test_wsm}.py
+└── presentation/                     # slides + screenshots</pre>
+<p class="small">Deliberately no <span class="mono">backend/</span>, <span class="mono">db/</span>, or <span class="mono">auth/</span>.</p>
+
+<h2>10 · Technology stack</h2>
+<div class="chips">
+  <span class="chip">Python 3.11 (Anaconda)</span><span class="chip">pandas</span><span class="chip">numpy</span><span class="chip">Jupyter</span><span class="chip">Streamlit</span><span class="chip">matplotlib</span><span class="chip">pytest</span><span class="chip">python-dotenv</span><span class="chip">google-generativeai (optional)</span>
+</div>
+<div class="callout keep"><b>Cost check:</b> every component is free/open-source and runs locally. Gemini, if used, is Google AI Studio's free tier; the deterministic default needs no key and no network. No paid services anywhere.</div>
+
+<h2>11 · Risk analysis &amp; mitigation</h2>
+<table>
+  <tr><th>Risk</th><th>Mitigation</th></tr>
+  <tr><td>Gemini key absent / fails at demo</td><td>Deterministic fallback <i>is</i> the core; live layer is optional, wrapped in try/except.</td></tr>
+  <tr><td>Judge spots fabricated names</td><td>Drop the arithmetic A/M/F rows; <span class="mono">spec_source</span> provenance; honest "mock where noted."</td></tr>
+  <tr><td>2026 specs aren't real</td><td>Every 2026 row flagged mock; presented as a projection in the panel + slides.</td></tr>
+  <tr><td>Scoring seen as arbitrary</td><td>Document every formula; show the weight sliders / sensitivity; call scores "heuristic."</td></tr>
+  <tr><td>Scope creep (RAG/DB/backend)</td><td>Freeze at Version B; C items only if Phase 5 is green.</td></tr>
+  <tr><td>Polishing before core works</td><td>Notebook done by end of Phase 2 → pass-safe before any UI polish.</td></tr>
+</table>
+
+<h2>12 · Creativity opportunities (on-theme, not gimmicks)</h2>
+<ul>
+  <li><b>Live weight sliders</b> — reorder results in real time; makes the WSM self-evident in the room.</li>
+  <li><b>Contrastive "why not X"</b> — explains the phone it <i>didn't</i> pick (over budget / weaker on your top factor).</li>
+  <li><b>Close-call flag</b> — when the top two are within a small margin, say so (honest UX = Ch.4).</li>
+  <li><b>Provenance &amp; limitations panel</b> — real vs. mock, scoring caveats; judges reward visible Responsible AI.</li>
+</ul>
+
+<h2>13 · Final recommendation</h2>
+<div class="callout">
+  <b>Build Version B:</b> a deterministic Galaxy-Pick engine (curated 2024–2026 dataset → four documented 0–10 scores → WSM → explained top-3), as a Jupyter notebook (graded core) + a Samsung-styled Streamlit app, with an optional free-tier Gemini layer that always degrades to a deterministic parser.
+</div>
+<p><b>Why over the alternatives:</b> the big production stack scores nothing here, costs days you don't have, and signals you misread a prompt-engineering / Responsible-AI exercise. Version A merely passes; B adds the differentiators (natural-language input, explainability, a Responsible-AI story) within the 3–5 day window; C's flourishes drop into B <i>only if</i> time remains. Deterministic-core-first means the project is fully demonstrable with zero API dependency — Gemini becomes a clean bonus, never a single point of failure.</p>
+
+<h2>Verification &amp; sign-off checklist</h2>
+<ul>
+  <li>☐ <span class="mono">build_dataset.py</span> → ~36 rows (27 real / 9 mock); all asserts pass.</li>
+  <li>☐ Notebook <i>Restart &amp; Run All</i> → no errors; worked example prints <b>7.5</b>; 3 EDA findings written.</li>
+  <li>☐ App: each persona → correct top-3; "photography under ₹50k" → camera-weighted, all ≤ ₹50k.</li>
+  <li>☐ <b>Fallback drill:</b> no key + Wi-Fi off → NL parse + explanations still work.</li>
+  <li>☐ <span class="mono">pytest -q</span> green; screenshots + deck ready.</li>
+</ul>
+
+<p class="small" style="margin-top:20px;border-top:1px solid var(--line);padding-top:8px">Companion files in the repo: <span class="mono">CLAUDE.md</span> (coding-agent rules) and <span class="mono">PLAN.md</span> (full phase-by-phase build spec with all module code, the complete dataset CSV, scoring formulas, tests, and the Gemini-prompt appendix).</p>
