@@ -8,6 +8,11 @@ NEUTRAL_NORM = 5.0      # what a criterion is worth when every option ties on it
 # Hard filters cut the pool; weights only rank whatever survives. Each entry maps a
 # filter key to (column, predicate) so `binding_filters` can re-test them one at a time.
 FILTERS = {
+    # The other half of the budget. `budget_max` is only a CEILING, and nothing in a weighted
+    # sum pulls toward the money you're willing to spend: value_score is specs-per-rupee, so
+    # the cheapest phone always wins it, and raising the cap from ₹20k to ₹50k returned the
+    # identical ₹9,000 phone. A floor is what makes "I have ₹30k" mean something.
+    "min_price_inr":    lambda df, v: df["price_inr"] >= v,
     "min_ram_gb":       lambda df, v: df["ram_gb"] >= v,
     "min_storage_gb":   lambda df, v: df["storage_gb"] >= v,
     "min_battery_mah":  lambda df, v: df["battery_mah"] >= v,

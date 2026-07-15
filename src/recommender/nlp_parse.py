@@ -20,7 +20,26 @@ KEYWORDS = {
     "value": ["cheap", "budget", "value", "affordable", "worth", "vfm", "money"],
 }
 
-_BUDGET_RE = re.compile(r"(?:under|below|less than|within|upto|up to)\s*(?:₹|rs\.?|inr)?\s*(\d+(?:,\d+)*)\s*(k|thousand|lakh|l)?", re.I)
+# Budget phrasing comes in two flavours and they mean different things:
+#   a CEILING ("under 50k")  -> spend up to this
+#   a TARGET  ("around 20k") -> spend about this
+# Reading "around 20,000" as a ceiling is nearly as wrong as not reading it at all: with a
+# value-weighted request it returns a ₹9,000 phone, because budget_max only caps and nothing
+# pulls upward. A target becomes a BAND.
+_AMOUNT = r"(?:₹|rs\.?|inr)?\s*(\d+(?:,\d+)*)\s*(k|thousand|lakh|lakhs|l)?"
+_CEIL_WORDS = r"under|below|less than|lesser than|within|upto|up to|at most|no more than|maximum|max|budget of"
+_TARGET_WORDS = r"around|about|approximately|approx\.?|roughly|nearly|near|circa|ballpark|~"
+
+_BUDGET_CEIL_RE = re.compile(rf"(?:{_CEIL_WORDS})\s*{_AMOUNT}", re.I)
+_BUDGET_TARGET_RE = re.compile(rf"(?:{_TARGET_WORDS})\s*{_AMOUNT}", re.I)
+# "₹20,000" / "Rs 20000" — a currency mark makes it money without needing a preposition
+_BUDGET_CURRENCY_RE = re.compile(r"(?:₹|rs\.?|inr)\s*(\d+(?:,\d+)*)\s*(k|thousand|lakh|lakhs|l)?", re.I)
+# "20k budget" / "20000 rupees" — the noun does the same job, on the other side
+_BUDGET_SUFFIX_RE = re.compile(r"(\d+(?:,\d+)*)\s*(k|thousand|lakh|lakhs|l)?\s*(?:budget|rupees)\b", re.I)
+
+# How wide "around X" is. Deliberately generous: a shopper saying "around 20k" will look at
+# 23k, and a band that tight returns nothing is worse than one slightly loose.
+TARGET_BAND = 0.15
 
 # "I don't mind the budget" used to *boost* value, because the keyword "budget" is there and
 # nothing looked left of it. The shopper said the opposite of what we heard. This matches a
@@ -60,19 +79,40 @@ def renormalize(weights):
     return {f: round(clean[f] / total, 4) for f in FACTORS}
 
 
-def _parse_budget(text):
-    m = _BUDGET_RE.search(text)
-    if not m:
-        return None
-    amount = float(m.group(1).replace(",", ""))
-    unit = (m.group(2) or "").lower()
+def _to_rupees(match):
+    amount = float(match.group(1).replace(",", ""))
+    unit = (match.group(2) or "").lower()
     if unit in ("k", "thousand"):
         amount *= 1_000
-    elif unit in ("lakh", "l"):
+    elif unit in ("lakh", "lakhs", "l"):
         amount *= 100_000
     elif amount <= 200:                 # bare "under 50" almost certainly means 50k
         amount *= 1_000
     return int(min(max(amount, BUDGET_MIN), BUDGET_MAX))
+
+
+def _clamp_budget(value):
+    return int(min(max(value, BUDGET_MIN), BUDGET_MAX))
+
+
+def _parse_budget(text):
+    """text -> (budget_min, budget_max). Either may be None.
+
+    A target ("around 20k") returns a band; a ceiling ("under 50k") returns only a max. Only
+    matches an amount that is introduced by a word or a currency mark — never a bare number,
+    because "50MP camera" and "200MP" would otherwise become ₹50,000 and ₹2,00,000 budgets.
+    """
+    m = _BUDGET_TARGET_RE.search(text)
+    if m:
+        target = _to_rupees(m)
+        return (_clamp_budget(round(target * (1 - TARGET_BAND))),
+                _clamp_budget(round(target * (1 + TARGET_BAND))))
+
+    for pattern in (_BUDGET_CEIL_RE, _BUDGET_CURRENCY_RE, _BUDGET_SUFFIX_RE):
+        m = pattern.search(text)
+        if m:
+            return None, _to_rupees(m)
+    return None, None
 
 
 def _parse_form_factor(text):
@@ -106,7 +146,8 @@ def parse_rules(text):
     """The deterministic fallback. Never raises, never touches the network."""
     text = (text or "").strip()
     if not text:
-        return {"weights": dict(NEUTRAL), "budget_max": None, "form_factor": "any", "must_haves": []}
+        return {"weights": dict(NEUTRAL), "budget_min": None, "budget_max": None,
+                "form_factor": "any", "must_haves": []}
 
     low = text.lower()
     spans = _dismissed_spans(low)
@@ -122,9 +163,11 @@ def parse_rules(text):
         weights[factor] += BOOST
         must_haves.append(factor)
 
+    budget_min, budget_max = _parse_budget(low)
     return {
         "weights": renormalize(weights),   # gibberish → all neutral, still sums to 1
-        "budget_max": _parse_budget(low),
+        "budget_min": budget_min,
+        "budget_max": budget_max,
         "form_factor": _parse_form_factor(low),
         "must_haves": must_haves,
     }
@@ -133,11 +176,18 @@ def parse_rules(text):
 GEMINI_PROMPT = """\
 Convert the shopper request into JSON only (no prose), matching:
 {{"weights":{{"camera":0-1,"performance":0-1,"battery":0-1,"value":0-1}},
- "budget_max": <int INR or null>, "form_factor":"any|compact|foldable", "must_haves":[str]}}
+ "budget_min": <int INR or null>, "budget_max": <int INR or null>,
+ "form_factor":"any|compact|foldable", "must_haves":[str]}}
 Rules: the four weights must sum to 1.0; if a need is unstated use 0.25 each; "50k"=50000.
+A ceiling ("under 60k") sets budget_max only, budget_min null. A target ("around 20k") is a
+band: budget_min 17000, budget_max 23000 — the shopper wants to spend about that, not less.
+If the shopper dismisses a factor ("I don't mind the budget"), do NOT weight it up.
 Example: "best camera phone under 60k" ->
 {{"weights":{{"camera":0.55,"performance":0.15,"battery":0.15,"value":0.15}},
- "budget_max":60000,"form_factor":"any","must_haves":["camera"]}}
+ "budget_min":null,"budget_max":60000,"form_factor":"any","must_haves":["camera"]}}
+Example: "budget phone around 20,000 with good performance" ->
+{{"weights":{{"camera":0.16,"performance":0.34,"battery":0.16,"value":0.34}},
+ "budget_min":17000,"budget_max":23000,"form_factor":"any","must_haves":["performance","value"]}}
 Request: "{text}" ->
 """
 
@@ -152,9 +202,17 @@ def _validate(raw):
         raise ValueError("weights missing one of the four factors")
     weights = renormalize(weights)
 
-    budget = raw.get("budget_max")
-    if budget is not None:
-        budget = int(min(max(float(budget), BUDGET_MIN), BUDGET_MAX))
+    budget_max = raw.get("budget_max")
+    if budget_max is not None:
+        budget_max = _clamp_budget(float(budget_max))
+
+    budget_min = raw.get("budget_min")
+    if budget_min is not None:
+        budget_min = _clamp_budget(float(budget_min))
+        # an inverted or impossible band is the model hallucinating — drop the floor rather
+        # than hand the engine a filter that can only ever return nothing
+        if budget_max is not None and budget_min >= budget_max:
+            budget_min = None
 
     form_factor = raw.get("form_factor", "any")
     if form_factor not in ("any", "compact", "foldable"):
@@ -166,7 +224,8 @@ def _validate(raw):
 
     return {
         "weights": weights,
-        "budget_max": budget,
+        "budget_min": budget_min,
+        "budget_max": budget_max,
         "form_factor": form_factor,
         "must_haves": [str(m) for m in must_haves],
     }

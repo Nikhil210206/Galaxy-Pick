@@ -17,8 +17,15 @@ Where this departs from the Stitch screens, and why (all forced by CLAUDE.md):
   * a free-text box, which the design has nowhere, because the brief requires plain
     English in and the parse pre-fills the sliders so the shopper can correct it;
   * the design's "based on current market availability and official Samsung
-    specifications" fine print is replaced by the provenance panel: every 2026 row is
-    projected, and claiming otherwise is the one thing rule 6 forbids.
+    specifications" fine print is replaced by the provenance panel — the specs are now
+    confirmed, but the 2024–25 street prices are modelled and must say so.
+
+Two flows, deliberately different journeys (see tests/test_app_flow.py):
+  personas -> analyzing -> results        (the design's "Step 1 of 3"; no form)
+  custom   -> analyzing -> results        ("Build My Own Preferences")
+Budget is a RANGE in both. The floor is load-bearing: budget_max is only a ceiling, and
+nothing in a weighted sum pulls toward it, so without a floor "Value / essentials" hands a
+₹30k shopper a ₹9,000 phone — best specs-per-rupee, useless advice.
 """
 import sys
 import time
@@ -74,12 +81,25 @@ DEFAULTS = {
 }
 for k, v in DEFAULTS.items():
     st.session_state.setdefault(k, v)
-# The weight sliders read their value straight from session state — seeding the keys here
-# (rather than passing value= at the call site) is what lets set_weights() move them.
-for _f in wsm.FACTORS:
-    st.session_state.setdefault(f"w_{_f}", DEFAULTS["weights"][_f])
-
 WEIGHT_STEP = 0.05
+
+
+def budget_range_default():
+    """The budget slider's position, rebuilt from state that actually persists.
+
+    Budget is a RANGE, not just a ceiling — the design's own label says "Budget Range". A cap
+    alone can't express "I have ₹30k": value_score is specs-per-rupee, so the cheapest phone
+    wins it regardless, and raising the cap from ₹20k to ₹50k returned the same ₹9,000 phone.
+    """
+    lo = (st.session_state.get("filters") or {}).get("min_price_inr") or PRICE_FLOOR
+    hi = st.session_state.get("budget_max") or PRICE_CEIL
+    lo = max(PRICE_FLOOR, min(int(lo), PRICE_CEIL))
+    return lo, max(lo, min(int(hi), PRICE_CEIL))
+
+
+def snap(weight):
+    """Onto the slider's grid, so the handle lands on a notch it can return to."""
+    return round(round(float(weight) / WEIGHT_STEP) * WEIGHT_STEP, 2)
 
 
 def go(screen):
@@ -88,16 +108,18 @@ def go(screen):
 
 
 def set_weights(weights):
-    """Write weights to the slider widgets, not just to our own state.
+    """The single home for weights: `st.session_state.weights`.
 
-    A keyed Streamlit widget ignores its `value=` argument once it exists, so assigning
-    st.session_state.weights alone would leave the sliders showing the old numbers — the
-    parse would look like it had done nothing.
+    Deliberately does NOT touch widget keys. The sliders carry no `key` at all and read this
+    dict via `value=`, which is what makes both directions work:
+      * a KEYED slider ignores `value=` once it exists, so the parse couldn't move it; and
+      * Streamlit purges a keyed widget's state on any run that doesn't render it, and keeps
+        the dead key in `_old_state` — so `setdefault` skipped it, the slider fell back to
+        `min_value`, and every weight read 0.00 after a trip to the results screen.
+    A keyless widget is identified by its arguments: change `value=` and it re-initialises;
+    leave it alone and the shopper's drag survives a rerun. That is exactly what we want.
     """
     st.session_state.weights = dict(weights)
-    for factor, value in weights.items():
-        # snap to the slider's grid so the handle lands on a notch it can return to
-        st.session_state[f"w_{factor}"] = round(float(value) / WEIGHT_STEP) * WEIGHT_STEP
 
 
 # --- chrome ---------------------------------------------------------------
@@ -142,6 +164,19 @@ def footer():
 def card(key):
     """A card that can hold widgets. Use `with card("x"):` — never a raw <div>."""
     return st.container(border=True, key=key)
+
+
+def apply_budget_range(lo, hi, extra_filters=None):
+    """Turn the budget range into what the engine takes: a ceiling plus a floor filter.
+
+    Both entry paths go through here so they can't drift apart. A floor equal to the
+    catalog's cheapest phone is no constraint at all, so it's sent as None — that keeps
+    `binding_filters()` from blaming a filter the shopper never really set.
+    """
+    st.session_state.budget_max = int(hi)
+    filters = dict(extra_filters or {})
+    filters["min_price_inr"] = int(lo) if lo > PRICE_FLOOR else None
+    st.session_state.filters = filters
 
 
 def price_block(row, size=22):
@@ -290,6 +325,9 @@ def screen_personas():
                              type="primary" if chosen else "secondary"):
                     st.session_state.persona = name
                     set_weights(p["weights"])
+                    # The persona suggests a band; the shopper owns it from here. Writing
+                    # budget_max/filters (not a widget key) is what moves the slider, via
+                    # budget_range_default().
                     st.session_state.budget_max = int(p["budget_max"])
                     st.session_state.free_text = ""
                     st.session_state.parse_note = None
@@ -300,14 +338,37 @@ def screen_personas():
                     st.rerun()
         st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
 
+    # The one question a persona genuinely cannot answer for the shopper. Without a floor,
+    # "Value / essentials" hands a ₹30k buyer a ₹9,000 phone — correct on specs-per-rupee,
+    # useless as advice.
+    with card("gp_persona_budget"):
+        st.markdown(
+            "<div class='gp-label'>What's your budget?</div>"
+            "<div class='gp-caption'>Drag both ends. The lower one matters: it stops us "
+            "recommending a ₹9,000 phone just because it's the best value on paper.</div>",
+            unsafe_allow_html=True,
+        )
+        lo, hi = st.slider("budget range", PRICE_FLOOR, PRICE_CEIL, step=1000,
+                           value=budget_range_default(), format="₹%d",
+                           label_visibility="collapsed")
+        pool = wsm.build_pool(df, hi, "any", {"min_price_inr": lo if lo > PRICE_FLOOR else None})
+        st.markdown(
+            f"<div class='gp-caption'>{theme.money(lo)} – {theme.money(hi)} · "
+            f"<b>{len(pool)}</b> phones in range</div>", unsafe_allow_html=True)
+
+    st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
     _, mid, _ = st.columns([1, 1.2, 1])
     with mid:
         if st.button("Continue with Selection", key="persona_continue", type="primary",
-                     disabled=st.session_state.persona is None):
+                     disabled=st.session_state.persona is None or pool.empty):
+            apply_budget_range(lo, hi)
             go("analyzing")
         if st.session_state.persona is None:
             st.markdown("<div class='gp-caption' style='text-align:center'>"
                         "Pick a profile to continue.</div>", unsafe_allow_html=True)
+        elif pool.empty:
+            st.markdown("<div class='gp-caption' style='text-align:center'>"
+                        "No phones in that range — widen it.</div>", unsafe_allow_html=True)
 
 
 def screen_custom():
@@ -339,13 +400,28 @@ def screen_custom():
                 set_weights(parsed["weights"])
                 st.session_state.form_factor = parsed["form_factor"]
                 if parsed["budget_max"]:
-                    st.session_state.budget_max = int(parsed["budget_max"])
+                    # "under ₹50k" is a ceiling (no floor); "around ₹20k" is a band. Clamp to
+                    # the slider's own bounds — the parser allows up to ₹2L, the catalog stops
+                    # short of that, and a value outside the range would throw.
+                    hi = max(PRICE_FLOOR, min(int(parsed["budget_max"]), PRICE_CEIL))
+                    lo = int(parsed["budget_min"]) if parsed["budget_min"] else PRICE_FLOOR
+                    lo = max(PRICE_FLOOR, min(lo, hi))
+                    apply_budget_range(lo, hi, extra_filters=st.session_state.filters)
                 engine = "Gemini" if config.GEMINI_ENABLED else "offline parser"
+                if parsed["budget_min"] and parsed["budget_max"]:
+                    # say "about ₹20,000" back, so the shopper can see we read a band and not
+                    # a ceiling — the difference decides whether they're shown a ₹9k phone
+                    budget_note = (f" · about {theme.money(parsed['budget_min'])}–"
+                                   f"{theme.money(parsed['budget_max'])}")
+                elif parsed["budget_max"]:
+                    budget_note = f" · up to {theme.money(parsed['budget_max'])}"
+                else:
+                    budget_note = " · no budget mentioned"
                 st.session_state.parse_note = (
                     f"Read by the {engine} as: " + ", ".join(
                         f"{explain.FACTOR_LABEL[f]} {v:.0%}"
                         for f, v in parsed["weights"].items()
-                    ) + (f" · budget {theme.money(parsed['budget_max'])}" if parsed["budget_max"] else "")
+                    ) + budget_note
                     + (f" · {parsed['form_factor']}" if parsed["form_factor"] != "any" else "")
                     + ". Correct it with the sliders below."
                 )
@@ -382,7 +458,8 @@ def screen_custom():
             for col, factor in zip(st.columns(2, gap="large"), wsm.FACTORS[start:start + 2]):
                 with col:
                     raw[factor] = st.slider(
-                        FACTOR_LABELS[factor], 0.0, 1.0, step=WEIGHT_STEP, key=f"w_{factor}",
+                        FACTOR_LABELS[factor], 0.0, 1.0,
+                        value=snap(st.session_state.weights[factor]), step=WEIGHT_STEP,
                     )
         assert len(raw) == len(wsm.FACTORS), "every WSM criterion must have a slider"
         weights = nlp_parse.renormalize(raw)
@@ -405,8 +482,10 @@ def screen_custom():
         )
         c1, c2 = st.columns(2, gap="large")
         with c1:
-            budget = st.slider("Budget range", PRICE_FLOOR, PRICE_CEIL,
-                               int(st.session_state.budget_max), 1000, format="₹%d")
+            # Two handles, as the design's "Budget Range" label always implied. The floor is
+            # the half that makes a budget mean anything — see apply_budget_range().
+            budget_lo, budget_hi = st.slider("Budget range", PRICE_FLOOR, PRICE_CEIL, step=1000,
+                                             value=budget_range_default(), format="₹%d")
             min_ram = st.select_slider("Minimum RAM", [0, 6, 8, 12], value=0,
                                        format_func=lambda v: "Any" if not v else f"{v} GB")
             min_storage = st.select_slider("Storage capacity", [0, 128, 256, 512], value=0,
@@ -433,6 +512,7 @@ def screen_custom():
                                            "than silently not.")
 
         filters = {
+            "min_price_inr": budget_lo if budget_lo > PRICE_FLOOR else None,
             "min_ram_gb": min_ram or None,
             "min_storage_gb": min_storage or None,
             "min_battery_mah": min_batt or None,
@@ -441,7 +521,7 @@ def screen_custom():
             "series": [s for g in picked for s in SERIES_GROUPS[g]] or None,
             "exclude_projections": hide_mock or None,
         }
-        pool = wsm.build_pool(df, budget, form, filters)
+        pool = wsm.build_pool(df, budget_hi, form, filters)
         st.markdown(
             f"<div style='height:16px'></div><div class='gp-caption'>"
             f"<b>{len(pool)}</b> of {len(df)} phones match these filters. Scores are normalized "
@@ -452,9 +532,11 @@ def screen_custom():
     st.markdown("<div style='height:24px'></div>", unsafe_allow_html=True)
     if st.button("Find My Galaxy", key="do_recommend", type="primary"):
         st.session_state.weights = weights
-        st.session_state.budget_max = budget
         st.session_state.form_factor = form
-        st.session_state.filters = filters
+        # the range → (budget_max, min_price_inr), same helper the persona path uses
+        apply_budget_range(budget_lo, budget_hi,
+                           extra_filters={k: v for k, v in filters.items()
+                                          if k != "min_price_inr"})
         go("analyzing")
 
 
@@ -501,7 +583,9 @@ def screen_results():
     if top3.empty:
         blocking = wsm.binding_filters(df, st.session_state.budget_max,
                                        st.session_state.form_factor, st.session_state.filters)
-        pretty = {"budget_max": "the budget", "form_factor": "the form factor",
+        pretty = {"budget_max": "the top of your budget",
+                  "min_price_inr": "the bottom of your budget",
+                  "form_factor": "the form factor",
                   "min_ram_gb": "minimum RAM", "min_storage_gb": "storage capacity",
                   "min_battery_mah": "minimum battery", "min_charging_w": "minimum charging",
                   "min_refresh_hz": "display quality", "series": "the series selection",
@@ -619,7 +703,7 @@ def screen_results():
         st.dataframe(
             full[["model_name", "series", "launch_year", "price_inr", "match_score",
                   *wsm.SCORE_COLS, "spec_source"]],
-            hide_index=True, use_container_width=True,
+            hide_index=True, width='stretch',
         )
     provenance_panel()
 
@@ -701,7 +785,7 @@ def screen_compare():
             "refresh_rate_hz", "charging_w", *wsm.SCORE_COLS, "spec_source", "price_source"]
     table = sub.set_index("model_name")[rows].T
     table.index = [r.replace("_inr", " (₹)").replace("_", " ").title() for r in rows]
-    st.dataframe(table, use_container_width=True)
+    st.dataframe(table, width='stretch')
     if (sub["spec_source"] == "mock").any():
         st.warning("Some models shown are projections — modelled specs, not confirmed.", icon="⚠️")
     if (sub["price_source"] == "depreciation_model").any():

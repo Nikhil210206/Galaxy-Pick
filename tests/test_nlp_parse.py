@@ -132,3 +132,42 @@ def test_but_ends_a_dismissal():
 def test_plain_budget_ask_still_boosts_value():
     """Negation handling must not break the ordinary case."""
     assert "value" in nlp_parse.parse_rules("budget phone under 15k")["must_haves"]
+
+
+# --- budget phrasing ------------------------------------------------------
+# The parser only understood "under/below/up to/within". "budget phone around 20,000" parsed
+# to budget_max=None, so there was no budget at all: the full catalog stayed in the pool and
+# a performance-weighted request returned a ₹1.4L S26 Ultra to someone asking for ₹20k.
+
+def test_around_an_amount_is_a_band_not_a_ceiling():
+    """'around 20,000' must not become 'up to 20,000' — with a value-weighted request that
+    returns a ₹9,000 phone, which is the opposite of what the shopper asked for."""
+    out = nlp_parse.parse_rules("I want a budget phone around 20,000 with good performance")
+    assert out["budget_min"] == 17000 and out["budget_max"] == 23000
+
+
+def test_ceiling_phrasings_set_only_a_maximum():
+    for text in ["under 20000", "below 20k", "up to 20k", "within 20k", "max 25k",
+                 "budget of 20000", "₹20,000", "Rs 20000", "20k budget"]:
+        out = nlp_parse.parse_rules(text)
+        assert out["budget_max"] is not None, f"{text!r} -> no budget"
+        assert out["budget_min"] is None, f"{text!r} -> unexpected floor"
+
+
+def test_target_phrasings_all_produce_the_same_band():
+    for text in ["around 20k", "about 20k", "approximately 20000", "roughly 20k", "near 20k"]:
+        out = nlp_parse.parse_rules(text)
+        assert (out["budget_min"], out["budget_max"]) == (17000, 23000), text
+
+
+def test_megapixels_are_not_mistaken_for_a_budget():
+    """The reason bare numbers are never matched: '200MP' would become a ₹2,00,000 budget."""
+    for text in ["200MP camera phone", "50MP camera", "a 108MP shooter"]:
+        out = nlp_parse.parse_rules(text)
+        assert out["budget_max"] is None, f"{text!r} invented a budget"
+
+
+def test_the_b4_free_text_case_is_unchanged():
+    """PLAN.md B.4 pins 'photography under ₹50k' — a ceiling, with no floor."""
+    out = nlp_parse.parse_rules("photography under ₹50k")
+    assert out["budget_max"] == 50000 and out["budget_min"] is None

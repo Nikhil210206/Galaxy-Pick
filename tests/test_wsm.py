@@ -154,3 +154,56 @@ def test_best_camera_money_no_object_returns_the_newest_ultra():
     out = wsm.recommend(df, {"camera": 1.0, "performance": 0.0, "battery": 0.0, "value": 0.0},
                         budget_max=200000, top_n=1)
     assert out.iloc[0]["model_name"] == "Galaxy S26 Ultra"
+
+
+# --- budget as a range, not just a ceiling --------------------------------
+# budget_max is only a CEILING and nothing in a weighted sum pulls toward the money you're
+# willing to spend: value_score is specs-per-rupee, so the cheapest phone always wins it.
+# Raising the Value persona's cap from ₹20k to ₹50k returned the identical ₹9,000 phone —
+# correct arithmetic, useless advice. min_price_inr is the other half of the budget.
+
+def test_raising_the_ceiling_alone_does_not_move_the_value_persona():
+    """Pins the flaw itself: without a floor, a 2.5x bigger budget still buys a ₹9k phone.
+
+    (The #1 does swap between M15 and F15 — normalization is pool-relative — but both are
+    ~₹9,000, which is the whole point: the ceiling exerts no pull at all.)
+    """
+    df = pd.read_csv("data/processed/phones.csv")
+    w = personas.PERSONAS["Value / essentials"]["weights"]
+    at_20k = wsm.recommend(df, w, budget_max=20000, top_n=1).iloc[0]["price_inr"]
+    at_50k = wsm.recommend(df, w, budget_max=50000, top_n=1).iloc[0]["price_inr"]
+    assert at_20k < 15000 and at_50k < 15000
+    assert abs(at_50k - at_20k) < 2000, "the ceiling barely moves the pick; only a floor does"
+
+
+def test_a_budget_floor_moves_the_pick_into_the_shoppers_band():
+    df = pd.read_csv("data/processed/phones.csv")
+    w = personas.PERSONAS["Value / essentials"]["weights"]
+    out = wsm.recommend(df, w, budget_max=30000, top_n=3, filters={"min_price_inr": 20000})
+    assert len(out) == 3
+    assert (out["price_inr"] >= 20000).all() and (out["price_inr"] <= 30000).all()
+    assert out.iloc[0]["price_inr"] >= 20000, "a ₹30k shopper must not be sent a ₹9k phone"
+
+
+def test_budget_floor_is_a_hard_filter_like_any_other():
+    df = pd.read_csv("data/processed/phones.csv")
+    out = wsm.recommend(df, NEUTRAL_W, budget_max=200000, top_n=len(df),
+                        filters={"min_price_inr": 100000})
+    assert len(out) > 0 and (out["price_inr"] >= 100000).all()
+
+
+def test_an_impossible_band_reports_both_ends_as_binding():
+    df = pd.read_csv("data/processed/phones.csv")
+    # nothing sits between ₹50k and ₹52k
+    filters = {"min_price_inr": 50000}
+    assert wsm.recommend(df, NEUTRAL_W, budget_max=52000, filters=filters).empty
+    blocking = wsm.binding_filters(df, budget_max=52000, filters=filters)
+    assert "budget_max" in blocking and "min_price_inr" in blocking
+
+
+def test_persona_defaults_are_unchanged_by_the_floor_being_available():
+    """B.4's expected picks must survive: no floor by default."""
+    df = pd.read_csv("data/processed/phones.csv")
+    p = personas.PERSONAS["Value / essentials"]
+    out = wsm.recommend(df, p["weights"], budget_max=p["budget_max"], top_n=3)
+    assert [m.replace("Galaxy ", "") for m in out["model_name"]] == ["M15 5G", "F15 5G", "M35 5G"]

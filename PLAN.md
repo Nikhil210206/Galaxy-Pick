@@ -239,9 +239,11 @@ def placeholder_svg(model_name, series):
 
 **Objective:** natural-language persona parsing (the one on-theme AI feature) that **always works offline**, plus the provenance panel.
 
-**`nlp_parse.py` contract:** `parse(text) -> {"weights": {...4 keys sum→1}, "budget_max": int|None, "form_factor": "any|compact|foldable", "must_haves": [str]}`.
+**`nlp_parse.py` contract:** `parse(text) -> {"weights": {...4 keys sum→1}, "budget_min": int|None, "budget_max": int|None, "form_factor": "any|compact|foldable", "must_haves": [str]}`.
+
+> **A budget comes in two flavours and they are not the same request.** A *ceiling* ("under 50k") sets `budget_max` only. A *target* ("around 20k") is a **band** — `budget_min` 17000 / `budget_max` 23000 (±15%). Reading a target as a ceiling is nearly as bad as not reading it: `budget_max` only caps, nothing pulls toward it, so "budget phone around 20,000" with a value-weighted request returns a ₹9,000 phone. The parser matches an amount **only** when a word or a currency mark introduces it — never a bare number, or "200MP camera" becomes a ₹2,00,000 budget.
 - If `config.GEMINI_ENABLED`: call Gemini with the Appendix C prompt, parse JSON, **validate** (all 4 weight keys, renormalize to sum 1.0, clamp budget to [5000, 200000]); on **any** exception or invalid output → fall back.
-- **Deterministic fallback (default):** start `{camera:.25, performance:.25, battery:.25, value:.25}`; keyword boosts (+0.3): camera/photo/photography/pictures→camera; game/gaming/fps/performance/fast/smooth→performance; battery/backup/long-lasting/charge→battery; cheap/budget/value/affordable/worth→value. Regex `under|below ₹?\s?(\d+)\s?k?` → `budget_max`. "compact/small"→compact; "fold/flip/foldable"→foldable. Renormalize weights to sum 1.0.
+- **Deterministic fallback (default):** start `{camera:.25, performance:.25, battery:.25, value:.25}`; keyword boosts (+0.3): camera/photo/photography/pictures→camera; game/gaming/fps/performance/fast/smooth→performance; battery/backup/long-lasting/charge→battery; cheap/budget/value/affordable/worth→value. Budget regex: ceiling words (`under|below|up to|within|max|budget of`) or a currency mark → `budget_max`; target words (`around|about|roughly|approximately|near`) → a ±15% band (`budget_min`, `budget_max`). Never matches a bare number. "compact/small"→compact; "fold/flip/foldable"→foldable. Renormalize weights to sum 1.0.
 
 **`explain.py`:** template — `"Great for {persona/goal}: strong {top_factor} ({s}/10) and {second_factor} ({s}/10), and at ₹{price:,} it fits your budget."` Add a **close-call note** when `top1.match - top2.match < 0.3`. Optional Gemini polish behind the same flag + fallback to the template.
 
@@ -330,7 +332,7 @@ def provenance(df) -> dict                     # {"total","real","mock","mock_ye
 def placeholder_svg(model_name: str, series: str) -> str
 
 # nlp_parse.py
-def parse(text: str) -> dict   # {"weights","budget_max","form_factor","must_haves"}
+def parse(text: str) -> dict   # {"weights","budget_min","budget_max","form_factor","must_haves"}
 
 # explain.py
 def reason(row, weights: dict, persona_label: str | None = None,
