@@ -23,13 +23,15 @@ Python 3.11 (Anaconda) · pandas · numpy · Jupyter · Streamlit · matplotlib 
 
 ## How to run
 ```bash
-conda env create -f environment.yml
-conda activate galaxy-pick
-python scripts/build_dataset.py                  # writes data/processed/phones.csv
-jupyter notebook notebooks/pj1_analysis.ipynb    # graded core
-streamlit run app/streamlit_app.py               # demo UI
-pytest -q                                         # tests
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
+.venv/bin/python scripts/build_dataset.py                # writes data/processed/phones.csv
+.venv/bin/python -m streamlit run app/streamlit_app.py   # demo UI
+.venv/bin/python -m pytest -q                            # tests
+.venv/bin/jupyter notebook notebooks/pj1_analysis.ipynb  # graded core
 ```
+Conda works too — `conda create -n galaxy-pick python=3.11 && conda activate galaxy-pick && pip install -r requirements-dev.txt`.
+
+**Two requirements files, deliberately.** `requirements.txt` is **runtime only** (streamlit · pandas · dotenv · optional google-generativeai) because that is what a deploy host installs; `requirements-dev.txt` adds Jupyter, matplotlib and pytest, which the app never imports. **There must be exactly one dependency file at the repo root**: Streamlit Community Cloud resolves `uv.lock` → `Pipfile` → `environment.yml` → `requirements.txt` and uses **only the first it finds**, so a re-added `environment.yml` would silently take over the deploy and conda-install the whole dev stack. That is why there isn't one. Playwright is in neither file — install it by hand for UI checks.
 
 ## Architecture
 `src/recommender/` is the **single source of truth**, imported by BOTH the notebook and the app. Never duplicate logic in the notebook or the app.

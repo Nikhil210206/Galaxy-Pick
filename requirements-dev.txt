@@ -1,0 +1,14 @@
+# Dev dependencies — the notebook, the tests, and the dataset build.
+# NOT installed by the deployed app; see the note at the top of requirements.txt.
+-r requirements.txt
+
+jupyter
+nbconvert          # `nbconvert --execute --inplace` re-runs the graded notebook
+matplotlib         # notebook charts only — the app never imports it
+numpy              # comes with pandas, pinned here because the notebook uses it directly
+pytest
+
+# Playwright is deliberately NOT listed. It is a browser-automation tool used to eyeball the
+# UI during development (AppTest proves the code runs, not that the layout is right), and it
+# downloads a ~150MB Chromium. Install it by hand when you need it:
+#     pip install playwright && playwright install chromium

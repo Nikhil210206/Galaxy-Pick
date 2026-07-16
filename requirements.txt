@@ -1,8 +1,15 @@
-pandas
-numpy
-matplotlib
-jupyter
-streamlit
-pytest
-python-dotenv
-google-generativeai
+# Runtime dependencies — what the deployed app needs, and nothing more.
+# Deploy hosts install this file, so keep it minimal: matplotlib (33MB) and jupyter (45MB+)
+# are notebook-only and live in requirements-dev.txt. The app imports exactly four things:
+# streamlit, pandas, dotenv, and (optionally) google.generativeai.
+#
+# Pinned to major versions: the deploy rebuilds on every push, so an unpinned major bump
+# would break the demo silently, at whatever moment someone happens to open it.
+streamlit>=1.59,<2
+pandas>=2.2,<4
+python-dotenv>=1.0,<2
+
+# Optional. The app runs fully offline without a key (config.GEMINI_ENABLED is False and
+# every call falls back — rule 2). Kept here so that adding GEMINI_API_KEY to the host's
+# secrets is the only step needed to light up the live path.
+google-generativeai>=0.8,<1

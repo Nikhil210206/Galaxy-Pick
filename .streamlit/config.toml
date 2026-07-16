@@ -1,6 +1,12 @@
+# Streamlit's own base theme. app/theme.py does the real styling via CSS, but these values
+# drive Streamlit's built-in widget chrome (slider tracks, focus rings) and the first paint
+# before the CSS lands — so they must match app/theme.py or the page flashes the wrong
+# colour on load. That matters more on a deployed app than on localhost.
+#
+# These are the Stitch design's *rendered* tokens, not DESIGN.md's prose. See app/theme.py.
 [theme]
-primaryColor = "#1428A0"
-backgroundColor = "#FFFFFF"
-secondaryBackgroundColor = "#F5F6F8"
-textColor = "#111111"
+primaryColor = "#1428A0"              # theme.PRIMARY_CONTAINER — Samsung Blue, CTAs
+backgroundColor = "#FBF8FF"           # theme.BG — the design's canvas, NOT pure white
+secondaryBackgroundColor = "#EFECF7"  # theme.SUBTLE
+textColor = "#1A1B22"                 # theme.TEXT
 font = "sans serif"

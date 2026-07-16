@@ -41,8 +41,7 @@ Assign your 4 teammates to these four seats. Owners are primary; everyone helps 
 ---
 
 ## 2. Prerequisites
-- Anaconda (or Miniconda) installed; `conda` on PATH.
-- Python 3.11 (created by `environment.yml`).
+- **Python 3.11+** and a venv: `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt`. *(Conda is optional — `conda create -n galaxy-pick python=3.11` then the same `pip install`. **There is deliberately no `environment.yml`** — see Phase 0.)*
 - No API key required. *(Optional:* a free Google AI Studio key in `.env` unlocks the live Gemini path.)
 - Copy the three source CSVs into `data/raw/` for reference (not required at runtime):
   `samsung_galaxy_dataset_2020_2026.csv`, `samsungMobilesData.csv`, `samsung_mobile_new_data.csv`.
@@ -59,8 +58,8 @@ galaxy-pick/
 ├── CLAUDE.md            # already present
 ├── PLAN.md             # already present
 ├── README.md
-├── environment.yml
-├── requirements.txt
+├── requirements.txt        # runtime only — this is what a deploy host installs
+├── requirements-dev.txt    # + notebook, matplotlib, pytest
 ├── .gitignore
 ├── .env.example
 ├── .streamlit/config.toml
@@ -74,35 +73,28 @@ galaxy-pick/
 └── presentation/
 ```
 
-**`environment.yml`:**
-```yaml
-name: galaxy-pick
-channels: [conda-forge]
-dependencies:
-  - python=3.11
-  - pandas
-  - numpy
-  - matplotlib
-  - jupyter
-  - streamlit
-  - pytest
-  - python-dotenv
-  - pip
-  - pip:
-      - google-generativeai   # optional; only used if a key is set
+**Dependencies — split runtime from dev, and keep exactly ONE dependency file at the root.**
+
+> **No `environment.yml`.** This project had one; it was **deleted 2026-07-16** to make the deploy work. Streamlit Community Cloud resolves dependency files `uv.lock` → `Pipfile` → `environment.yml` → `requirements.txt` and uses **only the first it finds** — so a conda file at the root silently hijacks the deploy and installs the entire dev stack (Jupyter, matplotlib, pytest) through fatter conda packages, against a ~1GB limit. Do not re-add one. Conda users: `conda create -n galaxy-pick python=3.11` then `pip install -r requirements-dev.txt`.
+
+**`requirements.txt`** — runtime only; the app imports exactly these:
+```
+streamlit>=1.59,<2
+pandas>=2.2,<4
+python-dotenv>=1.0,<2
+google-generativeai>=0.8,<1   # optional; app runs fully offline without a key
 ```
 
-**`requirements.txt`** (pip mirror):
+**`requirements-dev.txt`** — everything above, plus what only the notebook and tests need:
 ```
-pandas
-numpy
-matplotlib
+-r requirements.txt
 jupyter
-streamlit
+nbconvert
+matplotlib      # notebook charts only — the app never imports it
+numpy
 pytest
-python-dotenv
-google-generativeai
 ```
+*(Playwright is in neither: a dev-only browser check that pulls a ~150MB Chromium. `pip install playwright && playwright install chromium` when needed.)*
 
 **`.gitignore`:**
 ```
@@ -131,7 +123,7 @@ font = "sans serif"
 
 **`README.md`:** short — what it is, the run commands from `CLAUDE.md`, and a screenshots placeholder.
 
-**Acceptance:** `conda env create -f environment.yml` succeeds; `conda activate galaxy-pick`; `streamlit hello` opens.
+**Acceptance:** `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt` succeeds; `.venv/bin/python -m streamlit hello` opens.
 *(No per-phase commit — the whole build lands as the single commit in Section 10.)*
 
 ---
