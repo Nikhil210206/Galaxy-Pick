@@ -264,6 +264,52 @@ def placeholder_svg(model_name, series):
 
 ---
 
+## Phase 6 — GalaxyPick v2 redesign  *(planned 2026-07-16; NOT yet built)*
+
+A second Stitch design landed: 9 screens (Landing · Choose Mode · Select Persona · Persona Wizard · Chat with Galaxy AI · Recommendations · Product Detail · Reviews & Gallery · Buy Options). **Phases 0–5 are done and green; this phase is the agreed plan for building v2 on top.** Decisions below were made with Nikhil on 2026-07-16 — they are settled, not open questions.
+
+### 6.1 What the data can and cannot back
+The catalog has 21 columns. Checked against the design, these are **missing entirely**: `rating`, `review_count`, user photos, colours, retailer prices, durability (IP/glass), audio/entertainment, and any display data beyond `refresh_rate_hz`. Nothing in v2 may invent them (rule 6).
+
+| # | Screen | Verdict |
+|---|---|---|
+| 1 | Landing | **Build.** Drop "Trusted by 50,000+ users" — invented social proof. |
+| 2 | Choose Mode | **Build.** Two paths already exist (persona / free text). |
+| 3 | Select Persona | **Build with 4, not 8.** See 6.2. |
+| 4 | Persona Wizard | **Build.** Persona → Needs → Budget → Preferences → Summary. The best part of v2: the explicit **Budget step** is the proper home for the budget *range* (see §B.4 note on `min_price_inr`). |
+| 5 | Chat with Galaxy AI | **Build fallback-first.** See 6.4. |
+| 6 | Recommendations | **Build.** "Kiran, here are your matches" needs a name field, **not auth** (rule 4). Match % = `match_score × 10`; don't imply more precision than /10 carries. |
+| 7 | Product Detail | **Build Overview + Specifications + Compare only.** No colours, no carousel, no rating — no data for any of them. |
+| 8 | Reviews & Gallery | **Do not build.** See 6.3. |
+| 9 | Buy Options | **Build as outbound links, with no prices.** See 6.3. |
+
+### 6.2 Personas: keep the 4 we have, and fix the design
+The design draws 8 (Student, Professional, Creator, Gamer, Traveller, Business Executive, Parent/Family, Tech Enthusiast). We have **4 verified weight vectors**. Decision: **keep 4** and **edit the Stitch design down to 4** via the `stitch` MCP (`edit_screens`), so design and code agree. Do **not** invent 4 more vectors, and do **not** show 8 cards sharing 4 vectors — that trips "personas must disagree".
+
+The wizard's "What matters most to you? (choose up to 3)" chips list 8 needs, but the WSM has exactly 4 criteria (rule 3). Map them: **Battery / Performance / Camera / Budget-friendly → the four weights**; **Storage → a hard filter** (`min_storage_gb`); **Display → only the 90/120 Hz split** (binary — say so, or drop it); **Durability and Entertainment → no data at all, drop the chips.** Adding them means adding real columns to the seed first.
+
+### 6.3 Commerce: links out, never fabricated data
+- **Amazon reviews cannot be embedded. Verified, not assumed:** `amazon.in` returns **`x-frame-options: SAMEORIGIN`** on product pages, so a browser refuses to render it in an iframe from our app. Scraping is banned (rule 1 + Amazon ToS); the Product Advertising API needs an affiliate account with qualifying sales and **no longer returns review text**. So: **a "Read reviews on Amazon →" outbound link** is the only honest and possible route — real reviews, real source, nothing invented.
+- **Buy Now → an outbound search link** (`amazon.in/s?k=Samsung+<model>`, `flipkart.com/search?q=…`, `samsung.com/in/search/?searchvalue=…`). We have no product IDs, so search — not a deep link. **No per-retailer prices**: we'd be inventing them on top of prices that are already estimates.
+- This does **not** break rule 2: the app still *renders* offline; only the link needs the user's internet when clicked. No network call is made *by us*.
+
+### 6.4 Chat with Galaxy AI — fallback-first
+Rule 2 stands: **the demo must never depend on a network call**, and the graded fallback drill runs with no key. Build in this order:
+1. The chat-shaped UI over `nlp_parse.parse()` — one message = one parse, works offline, deterministic. **This is the path that gets graded.**
+2. The Gemini multi-turn layer *behind `config.GEMINI_ENABLED`*, added when a key exists, giving real conversation memory ("and make it cheaper" as a follow-up). Every call wrapped in `try/except` → falls back to (1).
+No key was available when this was planned, so (1) is the deliverable and (2) is additive. Whoever adds the key verifies the live path — the agent cannot.
+
+### 6.5 Build order (agreed)
+1. **Wizard + persona flow** — screens 1, 2, 3, 4, 6. All real-data-backed, and the Budget step is the proper fix for "a ₹30k shopper was shown a ₹9k phone".
+2. **Chat** — screen 5, fallback-first.
+3. **Buy + review links** — screens 7/9, outbound only.
+4. **Stitch design** — edit to 4 personas via MCP so it matches.
+
+### 6.6 What must not regress
+`PLAN.md` B.4's expected picks · the `7.5` worked example · "personas must disagree" · the offline fallback drill · the provenance panel. Run `pytest -q` (83 green at time of writing) and re-read the **"Working on the app"** traps in `CLAUDE.md` before touching `app/`.
+
+---
+
 ## 10. The commit (the human runs this; the agent only prints it)
 
 **One commit for the whole build.** The agent never commits and must not appear in author history.
